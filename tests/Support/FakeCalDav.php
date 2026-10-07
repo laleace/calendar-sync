@@ -25,6 +25,41 @@ final class FakeCalDav
         return $this->on('PROPFIND', $url, fn () => Http::response(self::fixture($fixture), $status, ['Content-Type' => 'application/xml; charset=utf-8']), $depth);
     }
 
+    public function report(string $url, string $xml): self
+    {
+        return $this->on('REPORT', $url, fn () => Http::response($xml, 207, ['Content-Type' => 'application/xml; charset=utf-8']), 1);
+    }
+
+    /**
+     * A calendar-query multistatus, as iCloud returns it: one response per calendar
+     * object resource, ICS as escaped text.
+     *
+     * @param  array<string, string|null>  $resources  href => ICS fixture name, raw ICS (starting with BEGIN:), or null for no calendar-data.
+     */
+    public static function calendarQueryXml(array $resources): string
+    {
+        $doc = new \DOMDocument('1.0', 'UTF-8');
+        $multistatus = $doc->appendChild($doc->createElementNS('DAV:', 'multistatus'));
+        $i = 0;
+
+        foreach ($resources as $href => $ics) {
+            $response = $multistatus->appendChild($doc->createElementNS('DAV:', 'response'));
+            $response->appendChild($doc->createElementNS('DAV:', 'href'))->textContent = $href;
+            $propstat = $response->appendChild($doc->createElementNS('DAV:', 'propstat'));
+            $prop = $propstat->appendChild($doc->createElementNS('DAV:', 'prop'));
+            $prop->appendChild($doc->createElementNS('DAV:', 'getetag'))->textContent = '"C='.(++$i).'@U=abc"';
+
+            if ($ics !== null) {
+                $data = str_starts_with($ics, 'BEGIN:') ? $ics : file_get_contents(__DIR__.'/../Fixtures/ics/'.$ics);
+                $prop->appendChild($doc->createElementNS('urn:ietf:params:xml:ns:caldav', 'calendar-data'))->textContent = $data;
+            }
+
+            $propstat->appendChild($doc->createElementNS('DAV:', 'status'))->textContent = 'HTTP/1.1 200 OK';
+        }
+
+        return $doc->saveXML();
+    }
+
     public function status(string $method, string $url, int $status, array $headers = []): self
     {
         return $this->on($method, $url, fn () => Http::response('', $status, $headers));

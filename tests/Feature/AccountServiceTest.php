@@ -5,11 +5,13 @@ use App\CalSync\CalDav\CalDavProvider;
 use App\CalSync\Contracts\CalendarProvider;
 use App\CalSync\Dto\ConnectionResult;
 use App\CalSync\Dto\DiscoveryResult;
+use App\CalSync\Dto\EventList;
 use App\CalSync\Exceptions\AuthenticationFailed;
 use App\CalSync\Exceptions\ProviderException;
 use App\Enums\AccountStatus;
 use App\Models\Account;
 use App\Models\Calendar;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
 use Tests\Support\FakeCalDav;
 
@@ -113,6 +115,11 @@ it('never stores secrets in the status message', function () {
         public function discoverCalendars(Account $account): DiscoveryResult
         {
             throw new ProviderException('server echoed abcd-efgh-ijkl-mnop');
+        }
+
+        public function listEvents(Calendar $calendar, CarbonImmutable $from, CarbonImmutable $to): EventList
+        {
+            return new EventList;
         }
     });
 

@@ -2,8 +2,11 @@
 
 namespace App\CalSync\CalDav;
 
+use DateTimeInterface;
+use DateTimeZone;
+
 /**
- * Request bodies for CalDAV discovery.
+ * Request bodies for CalDAV discovery and queries.
  */
 final class CalDavRequests
 {
@@ -38,4 +41,32 @@ final class CalDavRequests
           </d:prop>
         </d:propfind>
         XML;
+
+    /**
+     * Events with at least one occurrence overlapping [from, to). The server evaluates
+     * recurrences for the filter; expansion happens client-side (ICalendarMapper).
+     */
+    public static function calendarQuery(DateTimeInterface $from, DateTimeInterface $to): string
+    {
+        $utc = new DateTimeZone('UTC');
+        $start = (clone $from)->setTimezone($utc)->format('Ymd\THis\Z');
+        $end = (clone $to)->setTimezone($utc)->format('Ymd\THis\Z');
+
+        return <<<XML
+            <?xml version="1.0" encoding="UTF-8"?>
+            <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+              <d:prop>
+                <d:getetag/>
+                <c:calendar-data/>
+              </d:prop>
+              <c:filter>
+                <c:comp-filter name="VCALENDAR">
+                  <c:comp-filter name="VEVENT">
+                    <c:time-range start="{$start}" end="{$end}"/>
+                  </c:comp-filter>
+                </c:comp-filter>
+              </c:filter>
+            </c:calendar-query>
+            XML;
+    }
 }

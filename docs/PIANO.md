@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2.
+> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -28,7 +28,7 @@
 | Auth API | **Sanctum 4** (personal access token con abilities) | Vedi §2.2 |
 | DB | MySQL in produzione, SQLite in dev e test | Connessione via env. Migration portabili, senza funzioni specifiche di un solo DB |
 | Coda, cache, sessioni, lock | Driver `database` | Niente Redis da installare e gestire |
-| CalDAV | Facade `Http` + `DOMDocument`/`DOMXPath` + `sabre/vobject` ^4.6 | La 5.0 è uscita a luglio 2026: la valuto allo step 3 contro i test del parser |
+| CalDAV | Facade `Http` + `DOMDocument`/`DOMXPath` + `sabre/vobject` ^5.0 | Scelta allo step 3: stessa API della 4.6, con i tipi PHP moderni |
 | Google | `google/apiclient` con il solo servizio Calendar | Il cleanup di Composer rimuove le altre ~200 API |
 | Test | Pest | CalDAV con `Http::fake`. Google con `MockHandler` di Guzzle (il client Google usa Guzzle diretto, non la facade). SyncEngine con un provider in-memory |
 
@@ -386,3 +386,13 @@ Idempotenza:
   - Un calendario che non dichiara `current-user-privilege-set` viene considerato scrivibile. Se poi una scrittura fallisce, l'errore compare nel run.
   - Diagnostica HTTP con header mascherati: opzione `calsync:test-account --debug` e variabile `CALSYNC_HTTP_LOG=true` per scrivere nel log.
   - Ogni test chiama `Http::preventStrayRequests()`, quindi nessun test può raggiungere un server reale.
+- **Step 3.**
+  - `listEvents` restituisce un `EventList`: gli eventi, più l'elenco delle risorse che non è stato possibile leggere. Una lista con problemi è *incompleta*, e allo step 6 il SyncEngine non cancellerà copie sulla base di una lista incompleta.
+  - Ricorrenze:
+    - vobject conta le iterazioni dall'inizio della serie e si ferma a 3500 di default. Il limite è alzato a 50.000; oltre quella soglia l'evento finisce tra i problemi invece di bloccare tutto.
+    - Le eccezioni salvate senza l'evento principale vengono gestite a mano, per conservare il loro `RECURRENCE-ID` originale.
+    - Gli eventi all-day vengono ricalcolati a giorni interi, perché vobject misura le durate in secondi e a cavallo del cambio d'ora le sbaglierebbe di un'ora.
+  - Il formato di `recurrenceId` è sempre l'istante originale in UTC (`20261019T070000Z`), oppure la sola data (`20261012`) per gli all-day.
+  - Gli orari floating usano la timezone del calendario; se manca o non è valida, quella dell'app.
+  - I TZID in stile Windows/Outlook vengono mappati da vobject su zone IANA, per esempio "W. Europe Standard Time" diventa Europe/Berlin.
+  - Nuovo comando `calsync:list-events {calendar} --from --to`.

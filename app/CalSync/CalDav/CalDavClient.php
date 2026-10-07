@@ -35,7 +35,20 @@ final class CalDavClient
      */
     public function propfind(string $url, string $body, int $depth): Multistatus
     {
-        [$finalUrl, $response] = $this->request('PROPFIND', $url, $body, ['Depth' => (string) $depth]);
+        return $this->multistatus('PROPFIND', $url, $body, $depth);
+    }
+
+    /**
+     * @throws ProviderException
+     */
+    public function report(string $url, string $body, int $depth = 1): Multistatus
+    {
+        return $this->multistatus('REPORT', $url, $body, $depth);
+    }
+
+    private function multistatus(string $method, string $url, string $body, int $depth): Multistatus
+    {
+        [$finalUrl, $response] = $this->request($method, $url, $body, ['Depth' => (string) $depth]);
 
         if ($response->status() !== 207) {
             throw $this->unexpectedResponse($response, $finalUrl);

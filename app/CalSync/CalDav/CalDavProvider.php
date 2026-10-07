@@ -6,11 +6,15 @@ use App\CalSync\Contracts\CalendarProvider;
 use App\CalSync\Dto\CalendarDto;
 use App\CalSync\Dto\ConnectionResult;
 use App\CalSync\Dto\DiscoveryResult;
+use App\CalSync\Dto\EventList;
 use App\CalSync\Exceptions\AuthenticationFailed;
 use App\CalSync\Exceptions\ProviderException;
 use App\CalSync\Exceptions\ServerUnreachable;
 use App\Enums\AccountType;
 use App\Models\Account;
+use App\Models\Calendar;
+use Carbon\CarbonImmutable;
+use DateTimeZone;
 use GuzzleHttp\Psr7\Uri;
 
 /**
@@ -22,6 +26,8 @@ use GuzzleHttp\Psr7\Uri;
 final class CalDavProvider implements CalendarProvider
 {
     private const WRITE_PRIVILEGES = ['all', 'write', 'write-content'];
+
+    public function __construct(private readonly ICalendarMapper $mapper) {}
 
     public function testConnection(Account $account): ConnectionResult
     {
@@ -42,6 +48,39 @@ final class CalDavProvider implements CalendarProvider
         $home = $this->findCalendarHome($client, $principal);
 
         return new DiscoveryResult($this->listCalendars($client, $home), $principal, $home);
+    }
+
+    public function listEvents(Calendar $calendar, CarbonImmutable $from, CarbonImmutable $to): EventList
+    {
+        $multistatus = $this->client($calendar->account)
+            ->report($calendar->remote_id, CalDavRequests::calendarQuery($from, $to));
+
+        $timezone = $this->calendarTimezone($calendar);
+        $list = new EventList;
+
+        foreach ($multistatus->responses as $response) {
+            $url = $multistatus->resolve($response->href);
+            $ics = $response->text(Ns::CALDAV, 'calendar-data');
+
+            if ($ics === null) {
+                $list = $list->merge(new EventList(problems: ['Risorsa '.rawurldecode(basename((new Uri($url))->getPath())).' senza calendar-data.']));
+
+                continue;
+            }
+
+            $list = $list->merge($this->mapper->parse($ics, $from, $to, $timezone, $url, $response->text(Ns::DAV, 'getetag')));
+        }
+
+        return $list->sorted();
+    }
+
+    private function calendarTimezone(Calendar $calendar): DateTimeZone
+    {
+        try {
+            return new DateTimeZone($calendar->timezone ?? config('calsync.timezone'));
+        } catch (\Exception) {
+            return new DateTimeZone(config('calsync.timezone'));
+        }
     }
 
     private function client(Account $account): CalDavClient
