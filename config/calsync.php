@@ -13,6 +13,12 @@ return [
     */
     'run_retention_days' => (int) env('CALSYNC_RUN_RETENTION_DAYS', 30),
 
+    /*
+    | Log every outgoing CalDAV request (method, URL, status, masked headers) to the
+    | default log channel. Authorization and cookies are always masked.
+    */
+    'http_log' => (bool) env('CALSYNC_HTTP_LOG', false),
+
     'icloud' => [
         'base_url' => 'https://caldav.icloud.com/',
     ],

@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:cal="urn:ietf:params:xml:ns:caldav" xmlns:cs="http://calendarserver.org/ns/" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns" xmlns:x1="http://apple.com/ns/ical/">
+  <d:response>
+    <d:href>/remote.php/dav/calendars/mario/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype><d:collection/></d:resourcetype>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/remote.php/dav/calendars/mario/personal/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype><d:collection/><cal:calendar/></d:resourcetype>
+        <d:displayname>Personale</d:displayname>
+        <d:current-user-privilege-set>
+          <d:privilege><d:write/></d:privilege>
+          <d:privilege><d:write-properties/></d:privilege>
+          <d:privilege><d:write-content/></d:privilege>
+          <d:privilege><d:read/></d:privilege>
+          <d:privilege><cal:read-free-busy/></d:privilege>
+        </d:current-user-privilege-set>
+        <cal:supported-calendar-component-set>
+          <cal:comp name="VEVENT"/>
+          <cal:comp name="VTODO"/>
+        </cal:supported-calendar-component-set>
+        <x1:calendar-color>#0082c9</x1:calendar-color>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/remote.php/dav/calendars/mario/contact_birthdays/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype><d:collection/><cal:calendar/></d:resourcetype>
+        <d:displayname>Compleanni dei contatti</d:displayname>
+        <d:current-user-privilege-set>
+          <d:privilege><d:read/></d:privilege>
+          <d:privilege><cal:read-free-busy/></d:privilege>
+        </d:current-user-privilege-set>
+        <cal:supported-calendar-component-set>
+          <cal:comp name="VEVENT"/>
+        </cal:supported-calendar-component-set>
+        <x1:calendar-color>#FFFFCA</x1:calendar-color>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/remote.php/dav/calendars/mario/inbox/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype><d:collection/><cal:schedule-inbox/></d:resourcetype>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/remote.php/dav/calendars/mario/trashbin/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype><d:collection/><nc:trash-bin/></d:resourcetype>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>

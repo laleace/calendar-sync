@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: 0, 1.
+> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -359,7 +359,7 @@ Idempotenza:
 ## 7. Decisioni dalle risposte (2026-10-07)
 
 1. **Debian 12.** PHP 8.4 arriva dal repo Sury.
-2. **MySQL.** Server MySQL gestito da te su un container separato, driver `mysql`. Requisito: MySQL ≥ 5.7.8, per le colonne JSON.
+2. **MySQL.** Server MySQL gestito da te su un container separato, driver `mysql`. Versione: 8.0.45. Le migration dello step 1 sono applicate e funzionanti.
 3. **Dominio su Cloudflare**, già usato per n8n e Home Assistant. Allo step 9 documento due configurazioni:
    - Cloudflare Tunnel, con TLS terminato da Cloudflare e nginx in HTTP nel container;
    - in alternativa, proxy DNS con certificato origin.
@@ -378,3 +378,11 @@ Idempotenza:
   - Laravel 13 usa gli attributi PHP (`#[Fillable]`, `#[Hidden]`, `#[Signature]`) al posto delle proprietà: il codice segue questo stile.
   - Lo skeleton includeva `AGENTS.md` e `CLAUDE.md`, con istruzioni per installare Laravel Boost. Li ho rimossi perché non richiesti.
   - Test: Pest 5 (PHPUnit 13), SQLite in memoria.
+- **Step 2.**
+  - L'interfaccia `CalendarProvider` cresce con gli step. Ora contiene `testConnection` e `discoverCalendars`; `listEvents` arriva allo step 3, le scritture agli step 5 e 6. Così non restano metodi vuoti.
+  - I provider non scrivono mai sul DB: la persistenza passa da `AccountService`, che userà anche la GUI.
+  - Errori di rete (`ServerUnreachable`) e credenziali rifiutate (`AuthenticationFailed`) non fanno tentare `/.well-known/caldav`. Il fallback scatta solo se il server risponde, ma non indica il principal.
+  - I calendari vengono abbinati per URL completo e, in mancanza, per path. Così, se iCloud sposta l'account su un altro shard, i calendari mantengono il loro id.
+  - Un calendario che non dichiara `current-user-privilege-set` viene considerato scrivibile. Se poi una scrittura fallisce, l'errore compare nel run.
+  - Diagnostica HTTP con header mascherati: opzione `calsync:test-account --debug` e variabile `CALSYNC_HTTP_LOG=true` per scrivere nel log.
+  - Ogni test chiama `Http::preventStrayRequests()`, quindi nessun test può raggiungere un server reale.
