@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3.
+> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -396,3 +396,11 @@ Idempotenza:
   - Gli orari floating usano la timezone del calendario; se manca o non è valida, quella dell'app.
   - I TZID in stile Windows/Outlook vengono mappati da vobject su zone IANA, per esempio "W. Europe Standard Time" diventa Europe/Berlin.
   - Nuovo comando `calsync:list-events {calendar} --from --to`.
+- **Step 4.**
+  - Resource Account in Filament 5, con form, infolist e tabella in classi separate, come genera la v5.
+  - Username e password sono campi virtuali, mappati sul campo cifrato `credentials` nelle pagine Create ed Edit. La password non viene mai caricata nel form; dopo un salvataggio viene tolta anche dallo stato Livewire che torna al browser.
+  - Alla creazione la discovery parte subito. Se in modifica cambiano le credenziali o l'URL, la connessione viene ritestata.
+  - Non si può eliminare un account i cui calendari sono usati da un job. Il tipo di account non è modificabile.
+  - Il tipo Google non compare ancora tra le opzioni: arriva con l'OAuth allo step 5. Il banner gestisce già lo stato `token_expired`, con il link "Riconnetti".
+  - Pagina "Anteprima eventi": stessa lettura che userà il SyncEngine. Range massimo di 90 giorni, ricerca, paginazione fatta a mano (Filament non pagina da solo i dati da array).
+  - Verifica visiva fatta nel browser integrato, con un SQLite temporaneo e un finto server CalDAV locale.

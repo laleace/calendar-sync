@@ -7,6 +7,8 @@ use App\Enums\AccountType;
 use Database\Factories\AccountFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -69,5 +71,17 @@ class Account extends Model
         return $this->calendars()
             ->where(fn ($query) => $query->has('sourceOfJobs')->orHas('targetOfJobs'))
             ->exists();
+    }
+
+    /**
+     * Accounts whose credentials were rejected or whose token expired.
+     */
+    #[Scope]
+    protected function needingAttention(Builder $query): void
+    {
+        $query->whereIn('status', array_map(
+            fn (AccountStatus $status) => $status->value,
+            array_filter(AccountStatus::cases(), fn (AccountStatus $status) => $status->needsAttention()),
+        ));
     }
 }

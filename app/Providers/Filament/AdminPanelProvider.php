@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Models\Account;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -10,7 +11,9 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -42,6 +45,13 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
             ])
+            // Rejected credentials or expired tokens are shown on every page.
+            ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): View => view('filament.account-alerts', [
+                    'accounts' => Account::needingAttention()->orderBy('name')->get(['id', 'name', 'type', 'status', 'status_message']),
+                ]),
+            )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
