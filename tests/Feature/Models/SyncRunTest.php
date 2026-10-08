@@ -6,13 +6,13 @@ use App\Models\SyncRun;
 
 it('casts counters, enums and json payloads', function () {
     $run = SyncRun::factory()->finished(SyncRunStatus::Partial)->create([
-        'triggered_by' => SyncTrigger::Api,
+        'triggered_by' => SyncTrigger::Schedule,
         'error_count' => 1,
         'errors' => [['op' => 'create', 'uid' => 'abc', 'message' => 'boom']],
     ])->fresh();
 
     expect($run->status)->toBe(SyncRunStatus::Partial)
-        ->and($run->triggered_by)->toBe(SyncTrigger::Api)
+        ->and($run->triggered_by)->toBe(SyncTrigger::Schedule)
         ->and($run->error_count)->toBe(1)
         ->and($run->errors[0]['message'])->toBe('boom');
 });

@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "local/calendar-sync",
     "type": "project",
-    "description": "One-way calendar sync (iCloud/CalDAV/Google) with a Filament GUI and an API for n8n.",
+    "description": "One-way calendar sync and aggregation (iCloud/CalDAV/Google) with a Filament GUI.",
     "keywords": [
         "calendar",
         "caldav",
@@ -15,7 +15,6 @@
         "filament/filament": "^5.0",
         "google/apiclient": "^2.20",
         "laravel/framework": "^13.17",
-        "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "sabre/vobject": "^5.0"
     },

@@ -25,7 +25,7 @@ it('has no public registration or password reset', function () {
     $this->get('/admin/password-reset/request')->assertNotFound();
 });
 
-it('exposes no API routes yet', function () {
+it('exposes no API', function () {
     $this->getJson('/api/user')->assertNotFound();
 });
 

@@ -80,7 +80,6 @@ Per il redirect URI di produzione Google chiede solo un indirizzo HTTPS su un do
 - **Solo LAN.** Un record DNS su Cloudflare `calsync.<tuo-dominio>` punta all'IP privato del container, in modalità "DNS only" (nuvola grigia). Il certificato Let's Encrypt si ottiene con la challenge DNS-01 tramite le API di Cloudflare. Da Internet l'indirizzo non porta da nessuna parte.
 - **Cloudflare Tunnel + Cloudflare Access.** Utile se vuoi usare il pannello anche fuori casa. Access chiede un login (per esempio un codice alla tua email) prima ancora di arrivare a Laravel.
 
-In entrambi i casi n8n chiama l'API sulla rete interna.
 
 ## 7. Collegare un account
 

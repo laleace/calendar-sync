@@ -1,6 +1,6 @@
 # calendar-sync
 
-Sincronizzazione unidirezionale di calendari (iCloud / CalDAV / Google) con GUI Filament e API per n8n.
+Sincronizzazione unidirezionale e aggregazione di calendari (iCloud / CalDAV / Google) con GUI Filament.
 Piano e decisioni di progetto: [docs/PIANO.md](docs/PIANO.md). Guida al deploy: `deploy/README.md` (step 9).
 
 ## Sviluppo locale

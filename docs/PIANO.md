@@ -1,6 +1,7 @@
 # calendar-sync — Piano (Step 0)
 
 > Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4, 5.
+> **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -13,7 +14,6 @@
 |---|---|---|
 | Laravel | 13.35 | PHP ≥ 8.3 |
 | Filament | 5.10 | Livewire 4, Laravel 11.28 / 12 / 13 |
-| Sanctum | 4.3 | |
 | google/apiclient | 2.20 | |
 | sabre/vobject | 4.6.1 e 5.0.0 | |
 | Pest | 5 | |
@@ -25,12 +25,11 @@
 | PHP | 8.4 | Il container è Debian 12: PHP 8.4 dal repo Sury (packages.sury.org) |
 | Framework | Laravel 13 | Skeleton puro (`laravel/laravel`) senza starter kit, perché l'autenticazione la fornisce Filament |
 | GUI | **Filament 5** | Vedi §2.1 |
-| Auth API | **Sanctum 4** (personal access token con abilities) | Vedi §2.2 |
 | DB | MySQL in produzione, SQLite in dev e test | Connessione via env. Migration portabili, senza funzioni specifiche di un solo DB |
 | Coda, cache, sessioni, lock | Driver `database` | Niente Redis da installare e gestire |
 | CalDAV | Facade `Http` + `DOMDocument`/`DOMXPath` + `sabre/vobject` ^5.0 | Scelta allo step 3: stessa API della 4.6, con i tipi PHP moderni |
 | Google | `google/apiclient` con il solo servizio Calendar | Il cleanup di Composer rimuove le altre ~200 API |
-| Test | Pest | CalDAV con `Http::fake`. Google con `MockHandler` di Guzzle (il client Google usa Guzzle diretto, non la facade). SyncEngine con un provider in-memory |
+| Test | Pest | CalDAV con `Http::fake`. Google con un handler Guzzle finto (`FakeGoogle`), perché il client Google usa Guzzle direttamente e non la facade. SyncEngine con un provider in-memory. Le richieste reali, sia CalDAV sia Google, sono bloccate in tutti i test |
 
 ### 2.1 GUI: le opzioni
 
@@ -48,20 +47,9 @@
   - banner per token scaduto: render hook.
 - Filament è costruito su Livewire, quindi all'occorrenza posso scrivere componenti Livewire puri nello stesso progetto.
 
-### 2.2 Auth API: le opzioni
+### 2.2 API per n8n: rimosse
 
-- **`X-Api-Key` da env, confrontata con `hash_equals`.** È semplice, ma ha limiti:
-  - una sola chiave;
-  - per revocarla bisogna modificare `.env`;
-  - nessun permesso granulare.
-- **Sanctum (scelto).**
-  - Token multipli, per esempio uno per workflow n8n.
-  - Revoca dalla GUI e campo `last_used_at`.
-  - Abilities: `events:read`, `sync:run`, `runs:read`.
-  - Sanctum salva solo lo SHA-256 del token e lo confronta con `hash_equals`, quindi il requisito è soddisfatto nativamente.
-  - Il token in chiaro si vede una sola volta, alla creazione (dalla GUI o con `calsync:api-token`).
-  - In n8n basta una credenziale Header Auth con `Authorization: Bearer <token>`.
-  - Il caso "n8n legge senza scrivere" diventa un token con la sola ability `events:read`.
+La specifica iniziale prevedeva API protette da Sanctum, per permettere a n8n di avviare i sync e leggere gli eventi. Il 2026-10-08 sono state tolte: lo scheduler interno e il pulsante "Esegui ora" coprono tutti i casi d'uso. Se un giorno serviranno, lettura eventi e sync sono già servizi riutilizzabili.
 
 ## 3. Struttura del progetto
 
@@ -80,20 +68,19 @@ CalendarAggregator/              # root del repo = app Laravel "calendar-sync"
 │   ├── Enums/                   # AccountType, AccountStatus, PrivacyMode, SyncRunStatus, SyncTrigger
 │   ├── Models/                  # User, Account, Calendar, SyncJob, EventMapping, SyncRun
 │   ├── Jobs/SyncJobRunner.php
-│   ├── Console/Commands/        # CreateAdmin, AddCalDavAccount, TestAccount, ListEvents, DispatchDue, ApiToken
+│   ├── Console/Commands/        # CreateAdmin, AddCalDavAccount, TestAccount, ListEvents, DispatchDue
 │   ├── Filament/
 │   │   ├── Resources/           # AccountResource (+Calendars RM), SyncJobResource (+SyncRuns RM), SyncRunResource
-│   │   ├── Pages/               # Dashboard, CalendarPreview, ApiTokens
+│   │   ├── Pages/               # Dashboard, CalendarPreview
 │   │   └── Widgets/             # AccountHealth, RecentRuns
 │   └── Http/Controllers/
-│       ├── GoogleOAuthController.php
-│       └── Api/                 # CalendarEvents, SyncJobRun, SyncRunShow (+ JsonResource)
+│       └── GoogleOAuthController.php
 ├── database/migrations/
-├── routes/{web,api,console}.php
+├── routes/{web,console}.php
 ├── tests/
 │   ├── Fixtures/{caldav,ics,google}/   # risposte 207 XML, file ICS, JSON Google realistici
 │   ├── Unit/                    # parser XML, mapper ICS, transformer, redactor
-│   └── Feature/                 # comandi, engine, GUI, API
+│   └── Feature/                 # comandi, engine, GUI, OAuth
 ├── deploy/                      # step 9
 └── docs/PIANO.md                # questo file
 ```
@@ -195,7 +182,7 @@ Perché un hash come chiave: alcuni server generano UID lunghi centinaia di cara
 |---|---|---|
 | id | bigint PK | |
 | sync_job_id | FK, cascade | |
-| triggered_by | string(20) | `schedule`, `manual`, `api`. Non si chiama `trigger` perché è una parola riservata in MySQL |
+| triggered_by | string(20) | `schedule`, `manual`. Non si chiama `trigger` perché è una parola riservata in MySQL |
 | dry_run | bool | |
 | status | string(20) | `queued`, `running`, `success`, `partial`, `failed`, `skipped` |
 | started_at, finished_at | timestamp null | `created_at` corrisponde al momento dell'accodamento |
@@ -208,7 +195,7 @@ Perché un hash come chiave: alcuni server generano UID lunghi centinaia di cara
 Indice su `(sync_job_id, created_at)`. I run vengono eliminati con `Prunable` dopo `CALSYNC_RUN_RETENTION_DAYS` giorni (default 30).
 
 ### Tabelle di framework
-`personal_access_tokens` (Sanctum), `jobs`, `job_batches`, `failed_jobs`, `cache`, `cache_locks`, `sessions`.
+`jobs`, `job_batches`, `failed_jobs`, `cache`, `cache_locks`, `sessions`.
 
 ## 5. Decisioni di design
 
@@ -288,7 +275,7 @@ Idempotenza:
   - Google: campo `id` in base32hex derivato dall'hash. Un 409 significa che l'evento esiste già, e il job riprende da lì.
 
 ### 5.6 Coda, lock, scheduler
-- **Esecuzione.** `SyncJobRunner(syncRunId)` gira sulla coda `database` (queue `sync`). Il SyncRun viene creato in stato `queued` prima del dispatch, così API e GUI hanno subito un id da mostrare.
+- **Esecuzione.** `SyncJobRunner(syncRunId)` gira sulla coda `database` (queue `sync`). Il SyncRun viene creato in stato `queued` prima del dispatch, così la GUI ha subito un id da mostrare.
 - **Lock.** `Cache::lock("calsync:job:{id}", 900)` in modalità non bloccante. Se il lock è occupato, il run passa a `skipped` con il messaggio "già in esecuzione". Lo store dei lock è `database`, condiviso tra web e worker.
 - **Retry.** Il worker usa `tries=1`: il sync è idempotente e il giro successivo ritenta da solo. Questo evita tempeste di retry quando le credenziali sono sbagliate.
 - **Scheduler.** Un solo comando, `calsync:dispatch-due`, gira ogni minuto con `withoutOverlapping`.
@@ -327,10 +314,6 @@ Idempotenza:
   - Autenticazione Filament e protezione CSRF.
   - Nessuna registrazione e nessun reset password.
   - Login con rate limit.
-- **API.**
-  - Sanctum con abilities.
-  - Rate limit: 60 richieste al minuto in lettura, 10 al minuto per i run.
-  - Range massimo di 90 giorni.
 - **Produzione.**
   - `APP_DEBUG=false`.
   - Cookie `secure` e HSTS.
@@ -346,14 +329,14 @@ Idempotenza:
 
 | Step | Contenuto | Verifica |
 |---|---|---|
-| 1 | Laravel 13 nella root del repo, Filament 5, Sanctum. Migration, modelli con cast cifrati, enum, `calsync:create-admin`, login | `php artisan test`, `migrate:fresh`, login su `/admin` |
+| 1 | Laravel 13 nella root del repo, Filament 5. Migration, modelli con cast cifrati, enum, `calsync:create-admin`, login | `php artisan test`, `migrate:fresh`, login su `/admin` |
 | 2 | `CalDavClient`, `MultistatusParser`, discovery. Comandi `calsync:add-caldav-account` (crea l'account da CLI con password nascosta, serve finché non c'è la GUI) e `calsync:test-account {id}` | Test con `Http::fake` su risposte 207 realistiche: iCloud con shard, server generico, 401, redirect. Poi lo esegui tu su iCloud reale |
 | 3 | REPORT `calendar-query`, `ICalendarMapper`, espansione ricorrenze. Comando `calsync:list-events {calendar} --from --to` | Unit test del parser: evento singolo, all-day, ricorrente con eccezione ed EXDATE, TZID diverso, floating. Poi tu su iCloud reale |
 | 4 | Filament: Account (CRUD per tipo, Test connessione, Scopri calendari), relation manager Calendari, pagina Anteprima eventi, banner di stato degli account | Test Livewire/Filament e prova manuale |
 | 5 | `GoogleProvider`: OAuth (redirect e callback), discovery, lettura e scrittura con marker, refresh e scadenza del token. Guida per Google Cloud Console | Test con `MockHandler`. Poi colleghi tu un account reale |
 | 6 | `SyncEngine` (`plan` e `apply`), `EventTransformer`, CRUD SyncJob, dry-run nella GUI | Test feature: create, update, delete, merge, finestra temporale, sorgente in errore, Google → Google sullo stesso account senza loop |
 | 7 | `SyncJobRunner`, lock, `calsync:dispatch-due`, "Esegui ora", storico SyncRun, azione "Rimuovi copie del job" | Test di coda, lock e scheduler. Prova reale con `queue:work` |
-| 8 | API per n8n, gestione dei token nella GUI, rate limiting | Test feature: auth, abilities, range, cache, risposta 202 e polling del run |
+| 8 | ~~API per n8n~~: eliminato il 2026-10-08 | — |
 | 9 | `deploy/` (nginx, pool php-fpm, systemd per coda e scheduler, cron alternativo, env di esempio) e README operativo | Checklist di deploy sul tuo LXC |
 
 ## 7. Decisioni dalle risposte (2026-10-07)
@@ -368,9 +351,10 @@ Idempotenza:
    - `TrustProxies`, così Laravel genera URL `https` e il redirect URI OAuth è corretto;
    - l'IP reale da `CF-Connecting-IP`, perché il rate limit del login funzioni.
 
-   Valutare Cloudflare Access davanti alla GUI. n8n chiamerà l'API sulla rete interna.
+   Valutare Cloudflare Access davanti alla GUI.
 4. **Duplicati configurabili per job:** `allow_duplicates` e `skip_existing_in_target` (§4, §5.4).
 5. **Progetto nella root del repo**, git locale con un commit per step. Il push verso Gitea lo gestisci tu.
+6. **Niente API per n8n** (decisione del 2026-10-08). Lo scopo dell'app è solo sincronizzare e aggregare calendari. Rimossi Sanctum, `routes/api.php` e il trigger `api` dei run. La migration `drop_personal_access_tokens_table` elimina la tabella dai database già migrati.
 
 ## 8. Note di implementazione
 
