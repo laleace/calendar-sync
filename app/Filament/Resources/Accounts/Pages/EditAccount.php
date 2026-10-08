@@ -11,6 +11,7 @@ use App\Models\Account;
 use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Validation\ValidationException;
 
 /**
  * @property Account $record
@@ -45,7 +46,14 @@ class EditAccount extends EditRecord
             return ['name' => $data['name']];
         }
 
-        $credentials = $this->record->credentials ?? [];
+        if ($this->record->hasUnreadableCredentials() && blank($data['password'] ?? null)) {
+            throw ValidationException::withMessages([
+                'data.password' => 'La password salvata non si può decifrare (la APP_KEY è cambiata): inseriscila di nuovo.',
+            ]);
+        }
+
+        $stored = $this->record->safeCredentials() ?? [];
+        $credentials = $stored;
         $credentials['username'] = $data['username'];
 
         if (filled($data['password'] ?? null)) {
@@ -54,7 +62,7 @@ class EditAccount extends EditRecord
 
         $baseUrl = $this->record->type === AccountType::CaldavGeneric ? $data['base_url'] : $this->record->base_url;
 
-        $this->connectionChanged = $credentials !== ($this->record->credentials ?? []) || $baseUrl !== $this->record->base_url;
+        $this->connectionChanged = $credentials !== $stored || $baseUrl !== $this->record->base_url;
 
         return ['name' => $data['name'], 'base_url' => $baseUrl, 'credentials' => $credentials];
     }

@@ -85,6 +85,10 @@ final class GoogleClientFactory
      */
     public function forAccount(Account $account): Client
     {
+        if ($account->hasUnreadableCredentials()) {
+            throw new TokenExpired('I token salvati non si possono decifrare: la APP_KEY è cambiata da quando l\'account è stato collegato. Riconnetti l\'account Google.');
+        }
+
         $refreshToken = $account->credential('refresh_token');
 
         if (blank($refreshToken)) {

@@ -38,7 +38,7 @@ final class SecretRedactor
      */
     public static function secretsOf(Account $account): array
     {
-        $credentials = $account->credentials ?? [];
+        $credentials = $account->safeCredentials() ?? [];
 
         return array_values(array_filter(
             [$credentials['password'] ?? null, $credentials['access_token'] ?? null, $credentials['refresh_token'] ?? null],

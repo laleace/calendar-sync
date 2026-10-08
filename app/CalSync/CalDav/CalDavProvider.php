@@ -169,6 +169,10 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
 
     private function client(Account $account): CalDavClient
     {
+        if ($account->hasUnreadableCredentials()) {
+            throw new AuthenticationFailed('Le credenziali salvate non si possono decifrare: la APP_KEY è cambiata da quando sono state inserite. Reinserisci la password dell\'account.');
+        }
+
         $username = $account->credential('username');
         $password = $account->credential('password');
 

@@ -23,7 +23,10 @@ class AccountInfolist
                             ->badge(),
                         TextEntry::make('username')
                             ->label('Utente')
-                            ->state(fn (Account $record): ?string => $record->credential('username') ?? $record->credential('email'))
+                            ->state(fn (Account $record): ?string => $record->hasUnreadableCredentials()
+                                ? 'Credenziali illeggibili: salvate con un\'altra APP_KEY. Reinserisci la password o riconnetti l\'account.'
+                                : ($record->credential('username') ?? $record->credential('email')))
+                            ->color(fn (Account $record): ?string => $record->hasUnreadableCredentials() ? 'danger' : null)
                             ->placeholder('—'),
                         TextEntry::make('base_url')
                             ->label('Server')

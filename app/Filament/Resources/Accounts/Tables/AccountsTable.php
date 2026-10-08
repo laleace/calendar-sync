@@ -28,7 +28,13 @@ class AccountsTable
                     ->badge(),
                 TextColumn::make('username')
                     ->label('Utente')
-                    ->state(fn (Account $record): ?string => $record->credential('username') ?? $record->credential('email'))
+                    ->state(fn (Account $record): ?string => $record->hasUnreadableCredentials()
+                        ? 'Credenziali illeggibili'
+                        : ($record->credential('username') ?? $record->credential('email')))
+                    ->color(fn (Account $record): ?string => $record->hasUnreadableCredentials() ? 'danger' : null)
+                    ->tooltip(fn (Account $record): ?string => $record->hasUnreadableCredentials()
+                        ? 'Salvate con un\'altra APP_KEY: reinserisci la password o riconnetti l\'account.'
+                        : null)
                     ->placeholder('—'),
                 TextColumn::make('status')
                     ->label('Stato')

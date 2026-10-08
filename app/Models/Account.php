@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AccountStatus;
 use App\Enums\AccountType;
 use Database\Factories\AccountFactory;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -48,19 +49,53 @@ class Account extends Model
         return $this->hasMany(Calendar::class);
     }
 
+    /**
+     * The credentials, or null when they cannot be decrypted: they were saved with another
+     * APP_KEY (key regenerated, database copied from another installation).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function safeCredentials(): ?array
+    {
+        try {
+            return $this->credentials;
+        } catch (DecryptException) {
+            return null;
+        }
+    }
+
+    /**
+     * Eloquent decrypts the original value to detect changes of encrypted attributes:
+     * when it was encrypted with another key, any new value is a change.
+     */
+    public function originalIsEquivalent($key)
+    {
+        try {
+            return parent::originalIsEquivalent($key);
+        } catch (DecryptException) {
+            return false;
+        }
+    }
+
+    public function hasUnreadableCredentials(): bool
+    {
+        return filled($this->getAttributes()['credentials'] ?? null) && $this->safeCredentials() === null;
+    }
+
     public function credential(string $key): mixed
     {
-        return $this->credentials[$key] ?? null;
+        return $this->safeCredentials()[$key] ?? null;
     }
 
     /**
      * Merge values into the encrypted credentials blob, keeping the other keys.
+     * Unreadable credentials are replaced.
      *
      * @param  array<string, mixed>  $values
      */
     public function mergeCredentials(#[\SensitiveParameter] array $values): void
     {
-        $this->credentials = array_merge($this->credentials ?? [], $values);
+        $this->credentials = array_merge($this->safeCredentials() ?? [], $values);
     }
 
     /**

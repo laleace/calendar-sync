@@ -261,6 +261,21 @@ Lo script:
 4. riavvia i worker e ricarica PHP-FPM;
 5. toglie la manutenzione e lancia `calsync:doctor`.
 
+## Modifiche al `.env`
+
+La configurazione è in cache (`php artisan optimize`): una modifica al `.env` non ha effetto finché non rigeneri la cache e riavvii i processi.
+
+```bash
+cd /var/www/calendar-sync
+runuser -u calsync -- php artisan optimize
+runuser -u calsync -- php artisan queue:restart
+systemctl reload php8.4-fpm
+```
+
+**`APP_KEY`:** se cambia, le credenziali salvate prima non si possono più decifrare. Il pannello continua a funzionare, ma segna quegli account come "Credenziali illeggibili", e `calsync:doctor` li elenca. Ci sono due soluzioni:
+- rimettere la chiave con cui erano state salvate, per esempio quella del Mac se il database viene da lì;
+- reinserire la password degli account CalDAV (**Modifica**) e riconnettere quelli Google (**Riconnetti Google**). Calendari e job restano dove sono.
+
 ## Log
 
 | Cosa | Dove |

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\CalSync\Google\GoogleClientFactory;
 use App\Enums\SyncRunStatus;
 use App\Jobs\SyncJobRunner;
+use App\Models\Account;
 use App\Models\SyncRun;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -48,6 +49,14 @@ class Doctor extends Command
             DB::connection()->getPdo();
             $this->check('Database raggiungibile ('.config('database.default').')', true);
             $this->check('Utente amministratore creato', User::exists());
+
+            $unreadable = Account::all()->filter->hasUnreadableCredentials();
+            $this->check(
+                $unreadable->isEmpty()
+                    ? 'Credenziali degli account decifrabili con questa APP_KEY'
+                    : 'Credenziali illeggibili (APP_KEY diversa da quella usata per salvarle): '.$unreadable->pluck('name')->implode(', '),
+                $unreadable->isEmpty(),
+            );
         } catch (Throwable $e) {
             $this->check('Database raggiungibile: '.$e->getMessage(), false);
         }
