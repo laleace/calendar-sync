@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4, 5.
+> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4, 5, 6.
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
@@ -403,3 +403,28 @@ Idempotenza:
   - Lettura da Google: le voci "working location" e le istanze cancellate vengono scartate. `EventDto::$declined` segnala gli inviti rifiutati, grazie a `maxAttendees=1` che fa restituire solo il partecipante proprietario dell'account.
   - `google/apiclient` mantiene solo il servizio Calendar. Retry automatico su errori 5xx e rate limit (3 tentativi; 0 nei test).
   - Guida per la console: [docs/google-oauth.md](google-oauth.md).
+- **Step 6.**
+  - Scrittura CalDAV:
+    - PUT con `If-None-Match: *` su una risorsa con nome deterministico `calsync-{hash}.ics` e UID `calsync-{hash}@calendar-sync`;
+    - orari in UTC, quindi senza VTIMEZONE; marker `X-CALSYNC-JOB`, `X-CALSYNC-SOURCE` e `X-CALSYNC-KEY`;
+    - in caso di 412 la risorsa viene ripresa solo se porta il marker dello stesso job;
+    - update con PUT incondizionato; delete che ignora 404 e 410.
+  - Struttura del motore: `SyncEngine::plan()` legge e confronta, `apply()` scrive, `SyncService` registra il SyncRun. `SyncService::execute(SyncRun)` è pronto per il runner in coda dello step 7.
+  - Eventi esclusi dalle sorgenti:
+    - quelli con marker calsync, di qualsiasi job;
+    - quelli annullati;
+    - gli inviti rifiutati, in entrambe le modalità;
+    - in `busy_only`, quelli segnati come liberi.
+  - Regole di sicurezza:
+    - si eliminano solo copie presenti nei mapping del job;
+    - nessuna delete per le sorgenti illeggibili o incomplete;
+    - una sorgente che risulta improvvisamente vuota, pur avendo almeno 3 copie nel periodo, viene trattata come inaffidabile;
+    - le copie uscite dalla finestra temporale restano dove sono.
+  - Casi gestiti:
+    - cambio del target: le copie vengono spostate;
+    - sorgente rimossa dal job: le sue copie vengono cancellate;
+    - errori di credenziali o di rete sul target: il run si ferma e lo stato dell'account viene aggiornato;
+    - update su una copia cancellata a mano: la copia viene ricreata.
+  - Limite noto: una copia cancellata a mano sul target torna solo quando il suo evento sorgente cambia, perché il motore non rilegge il target a ogni run. È voluto, per risparmiare una lettura per run.
+  - Il dry-run ha una pagina dedicata (`/admin/sync-jobs/{id}/dry-run`): esegue il piano all'apertura, lo salva come SyncRun `dry_run` e lo mostra filtrabile. Si è scelta una pagina invece di un modale perché il modale rischierebbe di rieseguire le letture a ogni render.
+  - I calendari omonimi nello stesso account vengono distinti nelle select con timezone e id.

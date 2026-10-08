@@ -216,11 +216,71 @@ final class ICalendarMapper
             markers: array_filter([
                 'job' => $this->text($vevent, Markers::CALDAV_JOB),
                 'source' => $this->text($vevent, Markers::CALDAV_SOURCE),
+                'key' => $this->text($vevent, Markers::CALDAV_KEY),
                 'uid' => Markers::isMarkerUid($uid) ? $uid : null,
             ]),
             remoteId: $remoteId,
             etag: $etag,
         );
+    }
+
+    /**
+     * ICS for a copy on a CalDAV calendar: one VEVENT, no attendees or organizer (the server
+     * would send invitations), no alarms, calendar-sync markers as X- properties.
+     * Timed events are written in UTC, so no VTIMEZONE is needed.
+     */
+    public function toIcs(EventDto $event): string
+    {
+        $vcalendar = new VCalendar(['PRODID' => '-//calendar-sync//EN']);
+        $vevent = $vcalendar->add('VEVENT', [
+            'UID' => $event->uid,
+            'DTSTAMP' => new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            'SUMMARY' => $event->title,
+            'STATUS' => strtoupper($event->status->value),
+            'TRANSP' => $event->transparent ? 'TRANSPARENT' : 'OPAQUE',
+        ]);
+
+        if ($event->allDay) {
+            $vevent->add('DTSTART', $event->start->format('Ymd'), ['VALUE' => 'DATE']);
+            $vevent->add('DTEND', $event->end->format('Ymd'), ['VALUE' => 'DATE']);
+        } else {
+            $vevent->add('DTSTART', $event->start->utc()->toDateTimeImmutable());
+            $vevent->add('DTEND', $event->end->utc()->toDateTimeImmutable());
+        }
+
+        foreach (['LOCATION' => $event->location, 'DESCRIPTION' => $event->description] as $name => $value) {
+            if ($value !== null) {
+                $vevent->add($name, $value);
+            }
+        }
+
+        foreach ([Markers::CALDAV_JOB => 'job', Markers::CALDAV_SOURCE => 'source', Markers::CALDAV_KEY => 'key'] as $property => $marker) {
+            if (isset($event->markers[$marker])) {
+                $vevent->add($property, $event->markers[$marker]);
+            }
+        }
+
+        return $vcalendar->serialize();
+    }
+
+    /**
+     * The job marker of a stored calendar object, null when absent or unreadable.
+     */
+    public function jobMarker(string $ics): ?string
+    {
+        try {
+            $vcalendar = Reader::read($ics, Reader::OPTION_FORGIVING);
+        } catch (Throwable) {
+            return null;
+        }
+
+        foreach ($vcalendar->select('VEVENT') as $vevent) {
+            if ($job = $this->text($vevent, Markers::CALDAV_JOB)) {
+                return $job;
+            }
+        }
+
+        return null;
     }
 
     /**

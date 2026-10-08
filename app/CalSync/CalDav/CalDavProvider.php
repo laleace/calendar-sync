@@ -3,19 +3,25 @@
 namespace App\CalSync\CalDav;
 
 use App\CalSync\Contracts\CalendarProvider;
+use App\CalSync\Contracts\WritableCalendarProvider;
 use App\CalSync\Dto\CalendarDto;
 use App\CalSync\Dto\ConnectionResult;
 use App\CalSync\Dto\DiscoveryResult;
+use App\CalSync\Dto\EventDto;
 use App\CalSync\Dto\EventList;
+use App\CalSync\Dto\WrittenEvent;
 use App\CalSync\Exceptions\AuthenticationFailed;
 use App\CalSync\Exceptions\ProviderException;
 use App\CalSync\Exceptions\ServerUnreachable;
+use App\CalSync\Markers;
 use App\Enums\AccountType;
 use App\Models\Account;
 use App\Models\Calendar;
 use Carbon\CarbonImmutable;
 use DateTimeZone;
 use GuzzleHttp\Psr7\Uri;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Str;
 
 /**
  * CalDAV backend for iCloud and generic servers (Nextcloud, Radicale, Fastmail, ...).
@@ -23,9 +29,11 @@ use GuzzleHttp\Psr7\Uri;
  * Discovery: current-user-principal → calendar-home-set → Depth 1 listing of the home.
  * iCloud answers the home with a shard host (pXX-caldav.icloud.com), used as returned.
  */
-final class CalDavProvider implements CalendarProvider
+final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
 {
     private const WRITE_PRIVILEGES = ['all', 'write', 'write-content'];
+
+    private const ICS_CONTENT_TYPE = 'text/calendar; charset=utf-8';
 
     public function __construct(private readonly ICalendarMapper $mapper) {}
 
@@ -72,6 +80,82 @@ final class CalDavProvider implements CalendarProvider
         }
 
         return $list->sorted();
+    }
+
+    /**
+     * PUT with If-None-Match: *. If the resource exists, an earlier run created it (crash
+     * before the mapping was saved): take it over only if it carries this job's marker.
+     */
+    public function createEvent(Calendar $calendar, EventDto $event): WrittenEvent
+    {
+        $client = $this->client($calendar->account);
+        $url = $this->resourceUrl($calendar, $event);
+        $ics = $this->mapper->toIcs($event);
+
+        [$finalUrl, $response] = $client->request('PUT', $url, $ics, ['If-None-Match' => '*'], self::ICS_CONTENT_TYPE);
+
+        if ($response->status() === 412) {
+            [, $existing] = $client->request('GET', $url, headers: ['Accept' => 'text/calendar']);
+            $jobId = $event->markers['job'] ?? null;
+
+            if (! $existing->successful() || $jobId === null || $this->mapper->jobMarker($existing->body()) !== $jobId) {
+                throw new ProviderException('Sul calendario esiste già una risorsa '.basename($url).' non creata da questo job.');
+            }
+
+            [$finalUrl, $response] = $client->request('PUT', $url, $ics, [], self::ICS_CONTENT_TYPE);
+        }
+
+        return $this->written($response, $finalUrl);
+    }
+
+    /**
+     * PUT without preconditions: the source is the master, a copy edited or deleted on the
+     * target is restored.
+     */
+    public function updateEvent(Calendar $calendar, string $remoteId, EventDto $event): WrittenEvent
+    {
+        [$finalUrl, $response] = $this->client($calendar->account)
+            ->request('PUT', $remoteId, $this->mapper->toIcs($event), [], self::ICS_CONTENT_TYPE);
+
+        return $this->written($response, $finalUrl);
+    }
+
+    public function deleteEvent(Calendar $calendar, string $remoteId): void
+    {
+        [$finalUrl, $response] = $this->client($calendar->account)->request('DELETE', $remoteId);
+
+        if (! $response->successful() && ! in_array($response->status(), [404, 410], true)) {
+            throw $this->writeFailure($response, $finalUrl);
+        }
+    }
+
+    private function resourceUrl(Calendar $calendar, EventDto $event): string
+    {
+        $name = isset($event->markers['job'], $event->markers['key'])
+            ? Markers::UID_PREFIX.Markers::copyHash($event->markers['job'], $event->markers['key'])
+            : Markers::UID_PREFIX.Str::uuid();
+
+        return rtrim($calendar->remote_id, '/').'/'.$name.'.ics';
+    }
+
+    private function written(Response $response, string $url): WrittenEvent
+    {
+        if (! $response->successful()) {
+            throw $this->writeFailure($response, $url);
+        }
+
+        return new WrittenEvent($url, $response->header('ETag') ?: null);
+    }
+
+    private function writeFailure(Response $response, string $url): ProviderException
+    {
+        $resource = basename((new Uri($url))->getPath());
+
+        return match ($response->status()) {
+            401 => new AuthenticationFailed('Credenziali rifiutate dal server (HTTP 401) durante la scrittura.'),
+            403 => new ProviderException("Scrittura negata (HTTP 403) su {$resource}: il calendario potrebbe essere in sola lettura."),
+            default => new ProviderException("Scrittura di {$resource} non riuscita (HTTP {$response->status()})."),
+        };
     }
 
     private function calendarTimezone(Calendar $calendar): DateTimeZone

@@ -60,13 +60,18 @@ final class CalDavClient
     /**
      * Send a request, following redirects. Returns the final URL and the response.
      *
-     * @param  array<string, string>  $headers
+     * @param  array<string, string>  $headers  Override the defaults, Accept included.
      * @return array{0: string, 1: Response}
      *
      * @throws ProviderException
      */
-    public function request(string $method, string $url, ?string $body = null, array $headers = []): array
-    {
+    public function request(
+        string $method,
+        string $url,
+        ?string $body = null,
+        array $headers = [],
+        string $contentType = 'application/xml; charset=utf-8',
+    ): array {
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
             if (! $this->hosts->allows($url)) {
                 throw new ProviderException(sprintf(
@@ -77,14 +82,14 @@ final class CalDavClient
 
             $request = Http::withBasicAuth($this->username, $this->password)
                 ->withUserAgent('calendar-sync/1.0')
-                ->withHeaders($headers)
                 ->accept('application/xml')
+                ->withHeaders($headers)
                 ->connectTimeout(10)
                 ->timeout(30)
                 ->withoutRedirecting();
 
             if ($body !== null) {
-                $request = $request->withBody($body, 'application/xml; charset=utf-8');
+                $request = $request->withBody($body, $contentType);
             }
 
             try {

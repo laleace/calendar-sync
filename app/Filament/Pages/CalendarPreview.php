@@ -208,14 +208,7 @@ class CalendarPreview extends Page implements HasTable
      */
     private static function calendarOptions(): array
     {
-        return Calendar::with('account')
-            ->whereNull('missing_since')
-            ->orderBy('name')
-            ->get()
-            ->groupBy(fn (Calendar $calendar): string => $calendar->account->name)
-            ->map(fn ($calendars) => $calendars->mapWithKeys(fn (Calendar $calendar) => [$calendar->id => $calendar->name])->all())
-            ->sortKeys()
-            ->all();
+        return Calendar::groupedOptions(Calendar::with('account')->whereNull('missing_since')->get());
     }
 
     /**

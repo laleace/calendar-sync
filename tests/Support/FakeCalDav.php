@@ -20,6 +20,11 @@ final class FakeCalDav
         return file_get_contents(__DIR__.'/../Fixtures/caldav/'.$path);
     }
 
+    public static function fixtureIcs(string $name): string
+    {
+        return file_get_contents(__DIR__.'/../Fixtures/ics/'.$name);
+    }
+
     public function propfind(string $url, int $depth, string $fixture, int $status = 207): self
     {
         return $this->on('PROPFIND', $url, fn () => Http::response(self::fixture($fixture), $status, ['Content-Type' => 'application/xml; charset=utf-8']), $depth);

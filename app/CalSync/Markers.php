@@ -13,6 +13,8 @@ final class Markers
 
     public const CALDAV_SOURCE = 'X-CALSYNC-SOURCE';
 
+    public const CALDAV_KEY = 'X-CALSYNC-KEY';
+
     // CalDAV: redundant marker in the UID, in case a server drops X- properties.
     public const UID_PREFIX = 'calsync-';
 
@@ -26,12 +28,28 @@ final class Markers
     public const GOOGLE_SOURCE_KEY = 'calsync_source_key';
 
     /**
-     * Deterministic Google event id for a job copy. Google ids use base32hex ([a-v0-9]):
-     * a hex sha256 fits. Re-creating after a crash hits a 409 instead of a duplicate.
+     * Stable identity of a job copy: re-creating it after a crash hits a conflict
+     * (409/412) on the same id instead of producing a duplicate.
+     */
+    public static function copyHash(string $jobId, string $sourceKey): string
+    {
+        return hash('sha256', "calsync:{$jobId}:{$sourceKey}");
+    }
+
+    /**
+     * Google event ids use base32hex ([a-v0-9]): a hex sha256 fits.
      */
     public static function googleEventId(string $jobId, string $sourceKey): string
     {
-        return hash('sha256', "calsync:{$jobId}:{$sourceKey}");
+        return self::copyHash($jobId, $sourceKey);
+    }
+
+    /**
+     * UID of a copy on a CalDAV calendar; doubles as a marker if X- properties are dropped.
+     */
+    public static function caldavUid(string $jobId, string $sourceKey): string
+    {
+        return self::UID_PREFIX.self::copyHash($jobId, $sourceKey).self::UID_SUFFIX;
     }
 
     public static function isMarkerUid(string $uid): bool
