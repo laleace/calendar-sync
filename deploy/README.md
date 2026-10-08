@@ -169,7 +169,18 @@ HOST=calsync.example.com
 
 1. Su Cloudflare, in **DNS → Records**, aggiungi un record `A` `calsync` → `192.168.1.50` con il **proxy disattivato** (nuvola grigia, "DNS only"). Il nome risolve all'IP privato: da Internet non porta da nessuna parte.
 
-   Alcuni router e DNS locali (FRITZ!Box, pfSense/OPNsense, Pi-hole, AdGuard) bloccano i nomi pubblici che risolvono su IP privati, la cosiddetta protezione "DNS rebinding". Se `calsync.example.com` non risolve dalla LAN, aggiungi un'eccezione per il dominio o un record locale sul tuo DNS.
+   Alcuni router e DNS locali (FRITZ!Box, pfSense/OPNsense, Pi-hole, AdGuard) bloccano i nomi pubblici che risolvono su IP privati, la cosiddetta protezione "DNS rebinding". Per riconoscere il caso, dal Mac:
+
+   ```bash
+   dig +short calsync.example.com @1.1.1.1
+   dig +short calsync.example.com
+   ```
+
+   Se il primo comando restituisce l'IP del container e il secondo niente, il filtro è del router. Aggiungi un'eccezione:
+   - **FRITZ!Box**: **Rete domestica → Rete → Impostazioni di rete → Protezione dal DNS rebinding**. In "Eccezioni per nomi host" scrivi `calsync.example.com` e premi **Applica**. A seconda della versione di FRITZ!OS il percorso può cambiare leggermente: cerca "rebind".
+   - **Altri router o DNS locali**: un'eccezione equivalente, oppure un record DNS locale `calsync.example.com → 192.168.1.50`.
+
+   Poi svuota la cache DNS del Mac: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`.
 
 2. Su Cloudflare crea un **API Token** in **My Profile → API Tokens → Create Token**, partendo dal modello "Edit zone DNS". Permessi: `Zone → DNS → Edit`, limitati alla sola zona del tuo dominio.
 
