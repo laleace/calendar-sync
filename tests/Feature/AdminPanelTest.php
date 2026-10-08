@@ -53,3 +53,10 @@ it('rejects a wrong password', function () {
 
     $this->assertGuest();
 });
+
+it('serves the privacy page without login', function () {
+    $this->get('/privacy')
+        ->assertOk()
+        ->assertSee('Informativa sulla privacy')
+        ->assertSee('myaccount.google.com/permissions');
+});

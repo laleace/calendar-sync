@@ -47,15 +47,11 @@ Per uso personale conviene pubblicarla:
 
 1. In **Branding** Google può chiedere i link dell'app. Sono informazioni mostrate nella schermata di consenso, che vedi solo tu. Google li esamina soltanto se chiedi la verifica dell'app, che qui non serve. Compila così:
    - **Home page dell'applicazione**: `https://calsync.<tuo-dominio>` (oppure la home del tuo dominio, se ne hai una);
-   - **Link alle norme sulla privacy**: una pagina sul tuo dominio, per esempio `https://<tuo-dominio>/privacy`. Basta un testo breve, come quello sotto;
+   - **Link alle norme sulla privacy**: `https://calsync.<tuo-dominio>/privacy`. La pagina è inclusa nell'app ed è pubblica, senza login;
    - **Termini di servizio**: facoltativo, lascia vuoto;
    - **Domini autorizzati**: `<tuo-dominio>`. È obbligatorio per usare il redirect URI di produzione, e i domini dei link sopra devono rientrare qui.
 
    Nessuno di questi indirizzi deve per forza essere raggiungibile da Internet, e l'app Laravel non va esposta per questo (vedi la sezione "Esposizione in rete").
-
-   Testo minimo per la pagina privacy:
-
-   > Calendar Sync è un'applicazione personale, usata solo dal proprietario del dominio. Accede a Google Calendar esclusivamente per sincronizzare i calendari del proprietario. I dati non vengono condivisi con terzi né usati per altri scopi. I token di accesso sono conservati cifrati e si possono revocare in qualsiasi momento da https://myaccount.google.com/permissions.
 
 2. Vai su **Pubblico** e premi **Pubblica app**, poi conferma. Lo stato diventa **In produzione**.
 3. Non serve la verifica di Google: è richiesta solo per superare i 100 utenti. Con l'app non verificata, al momento del consenso Google mostra l'avviso "Google non ha verificato questa app". Premi **Avanzate → Vai a Calendar Sync (non sicura)**: l'app è la tua.
