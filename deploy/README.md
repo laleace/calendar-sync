@@ -180,7 +180,7 @@ HOST=calsync.example.com
    - **FRITZ!Box**: **Rete domestica → Rete → Impostazioni di rete → Protezione dal DNS rebinding**. In "Eccezioni per nomi host" scrivi `calsync.example.com` e premi **Applica**. A seconda della versione di FRITZ!OS il percorso può cambiare leggermente: cerca "rebind".
    - **Altri router o DNS locali**: un'eccezione equivalente, oppure un record DNS locale `calsync.example.com → 192.168.1.50`.
 
-   Poi svuota la cache DNS del Mac: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`.
+   Il router può continuare a dare la risposta filtrata già in cache fino a 5 minuti (il TTL del record): aspetta, poi svuota la cache DNS del Mac con `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`.
 
 2. Su Cloudflare crea un **API Token** in **My Profile → API Tokens → Create Token**, partendo dal modello "Edit zone DNS". Permessi: `Zone → DNS → Edit`, limitati alla sola zona del tuo dominio.
 
