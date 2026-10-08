@@ -60,3 +60,14 @@ it('serves the privacy page without login', function () {
         ->assertSee('Informativa sulla privacy')
         ->assertSee('myaccount.google.com/permissions');
 });
+
+it('honours X-Forwarded-Proto only from local proxies', function (string $remoteAddress, string $expectedScheme) {
+    $this->withServerVariables(['REMOTE_ADDR' => $remoteAddress])
+        ->withHeaders(['X-Forwarded-Proto' => 'https', 'X-Forwarded-Port' => '443'])
+        ->get('http://calsync.example.test/admin/login')
+        ->assertOk()
+        ->assertSee($expectedScheme.'://calsync.example.test/css/filament/filament/app.css', escape: false);
+})->with([
+    'cloudflared on the same machine' => ['127.0.0.1', 'https'],
+    'any other client' => ['192.168.1.50', 'http'],
+]);
