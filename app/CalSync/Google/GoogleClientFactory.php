@@ -63,8 +63,9 @@ final class GoogleClientFactory
 
         $client->setScopes([self::SCOPE]);
         $client->setAccessType('offline');
-        // Always show the consent screen: guarantees a refresh token on every connection.
-        $client->setPrompt('consent');
+        // select_account: always let the user pick the Google account (a new panel account is
+        // often a different Google account). consent: guarantees a refresh token every time.
+        $client->setPrompt('select_account consent');
         $client->setHttpClient(new GuzzleClient([
             'base_uri' => $client->getConfig('base_path'),
             'handler' => HandlerStack::create($this->handler),

@@ -87,3 +87,10 @@ Per il redirect URI di produzione Google chiede solo un indirizzo HTTPS su un do
 1. Nel pannello vai su **Account → Nuovo**, scegli **Google** e dai un nome all'account. Premi **Salva**.
 2. Vieni portato su Google. Scegli l'account del calendario e concedi l'accesso al calendario: se Google mostra le caselle dei permessi, lascia spuntata quella del calendario.
 3. Torni sul pannello, dove l'account risulta collegato e i calendari vengono scoperti automaticamente.
+
+## 8. Calendari di un altro account Google
+
+Il client OAuth identifica l'app, non un account: qualsiasi account Google può autorizzarla, fino a 100 per un'app non verificata.
+
+- **Account Google diverso:** crea un nuovo account di tipo Google nel pannello. Su Google scegli l'altro account dalla lista, oppure "Usa un altro account". Anche per questo account comparirà l'avviso "Google non ha verificato questa app".
+- **In alternativa, condivisione:** dall'altro account condividi il calendario con quello già collegato, con il permesso "Apporta modifiche agli eventi" se deve fare da destinazione. Il calendario comparirà tra quelli dell'account esistente dopo "Scopri calendari".

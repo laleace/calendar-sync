@@ -47,7 +47,7 @@ it('sends the user to the Google consent screen with state and PKCE', function (
             'response_type' => 'code',
             'scope' => 'https://www.googleapis.com/auth/calendar',
             'access_type' => 'offline',
-            'prompt' => 'consent',
+            'prompt' => 'select_account consent',
             'login_hint' => 'mario.rossi@gmail.com',
             'code_challenge_method' => 'S256',
             'state' => $pending['state'],
