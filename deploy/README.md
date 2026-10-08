@@ -79,7 +79,13 @@ mysql -u root -p < create-database.sql
 
 ## 5. Codice
 
-Dal Gitea, con una deploy key in sola lettura per l'utente `calsync`:
+Il push manda il codice dal Mac a Gitea. Qui serve il percorso inverso: il container **scarica** il codice da Gitea, adesso con `git clone` e poi a ogni aggiornamento con `git pull`, eseguito da `update.sh`. Per leggere un repository privato il container ha bisogno di una sua identità. La più adatta è una **deploy key**:
+- è una chiave SSH generata sul container per l'utente `calsync`;
+- Gitea la associa a **un solo repository**, in **sola lettura**;
+- sul server non resta nessuna password del tuo account Gitea;
+- la puoi revocare in qualsiasi momento.
+
+**5.1 Genera la chiave** sul container, come utente `calsync` e senza passphrase, perché gli aggiornamenti devono girare senza interazione:
 
 ```bash
 install -d -o calsync -g calsync -m 700 /home/calsync/.ssh
@@ -87,13 +93,33 @@ runuser -u calsync -- ssh-keygen -t ed25519 -N "" -f /home/calsync/.ssh/id_ed255
 cat /home/calsync/.ssh/id_ed25519.pub
 ```
 
-Aggiungi la chiave pubblica su Gitea, in **Repository → Impostazioni → Chiavi di deploy**, senza permesso di scrittura. Poi clona:
+L'ultimo comando stampa la chiave **pubblica**, una riga che inizia con `ssh-ed25519`: copiala. La chiave privata (`id_ed25519`, senza `.pub`) non esce mai dal container.
+
+**5.2 Registrala su Gitea:** apri il repository → **Impostazioni → Chiavi di deploy → Aggiungi chiave**. Incolla la chiave pubblica e dai un nome, per esempio `container calendar-sync`. Lascia **disattivato** "Abilita accesso in scrittura".
+
+**5.3 Trova l'indirizzo SSH del repository:** nella pagina del repository, pulsante clona, scheda **SSH**. Ha una forma come `ssh://git@git.example.com:2222/user/calendar-sync.git` oppure `git@192.168.1.30:user/calendar-sync.git`. Se Gitea gira in Docker, la porta SSH è spesso 2222 invece di 22.
+
+**5.4 Prova l'accesso:**
+
+```bash
+runuser -u calsync -- ssh -T -p 2222 git@git.example.com
+```
+
+Usa il tuo host e la tua porta. La prima volta SSH chiede di confermare l'impronta del server: rispondi `yes`. Se Gitea risponde *"You've successfully authenticated … but Gitea does not provide shell access"*, è tutto a posto.
+
+**5.5 Clona e installa le dipendenze.** La cartella deve essere vuota: il punto finale di `git clone` significa "qui dentro". La cartella `vendor/` non è nel repository, la ricrea Composer.
 
 ```bash
 cd /var/www/calendar-sync
-runuser -u calsync -- env HOME=/home/calsync git clone ssh://git@<gitea>/<utente>/calendar-sync.git .
+runuser -u calsync -- env HOME=/home/calsync git clone <INDIRIZZO-SSH> .
 runuser -u calsync -- env HOME=/home/calsync composer install --no-dev --optimize-autoloader --no-interaction
 ```
+
+`runuser -u calsync` esegue il comando come utente `calsync`, così i file gli appartengono. `HOME=/home/calsync` fa usare a git e Composer la sua cartella home invece di quella di root.
+
+> **Alternativa senza SSH:** se il tuo Gitea non espone SSH, crea un **token di accesso** in sola lettura (**Impostazioni utente → Applicazioni**, permesso `repository: read`) e clona via HTTPS: `git clone https://<utente>:<token>@git.example.com/user/calendar-sync.git .`. Il token resta salvato in `.git/config` del container. Funziona, ma la deploy key è più pulita.
+
+Il file `.env` non è nel repository (è in `.gitignore`): lo crei sul container al punto successivo.
 
 ## 6. Configurazione (`.env`)
 
