@@ -10,6 +10,7 @@ use App\CalSync\Dto\WrittenEvent;
 use App\CalSync\Exceptions\ProviderException;
 use App\CalSync\Exceptions\TokenExpired;
 use App\CalSync\Google\GoogleProvider;
+use App\CalSync\Sync\SyncEngine;
 use App\CalSync\Sync\SyncService;
 use App\Enums\AccountStatus;
 use App\Enums\EventStatus;
@@ -57,7 +58,8 @@ it('copies new events to the target with the job markers', function () {
 
     expect($run->status)->toBe(SyncRunStatus::Success)
         ->and($run->created_count)->toBe(2)
-        ->and(titlesOn($this->fake, $this->target))->toBe(['Cena con Luca', 'Dentista']);
+        ->and(titlesOn($this->fake, $this->target))->toBe(['Cena con Luca', 'Dentista'])
+        ->and(collect($run->plan)->pluck('op')->all())->toBe(['create', 'create']);
 
     $copy = collect($this->fake->eventsOn($this->target))->firstWhere('title', 'Cena con Luca');
     $mapping = EventMapping::where('source_uid', 'dinner@icloud')->sole();
@@ -438,4 +440,57 @@ it('plans without writing anything in a dry-run', function () {
         ->and($run->plan[0])->toMatchArray(['op' => 'create', 'title' => 'Cena con Luca', 'source' => 'Casa'])
         ->and($run->plan[1])->toMatchArray(['op' => 'skip', 'title' => 'Libero', 'reason' => 'invito rifiutato'])
         ->and($this->job->fresh()->last_run_at)->toBeNull();
+});
+
+it('restores a copy deleted by hand on the next run', function () {
+    $this->fake->seed($this->home, Fake::event('a', 'Uno', '2026-10-10 09:00', '2026-10-10 10:00'));
+    syncNow($this->job);
+
+    $this->fake->calendars['google/agenda'] = [];
+    $run = syncNow($this->job);
+
+    expect($run->updated_count)->toBe(1)
+        ->and(titlesOn($this->fake, $this->target))->toBe(['Uno']);
+
+    $plan = app(SyncEngine::class)->plan($this->job->fresh());
+    expect($plan->operations)->toBeEmpty();
+});
+
+it('recognises its copies by remote id when the server drops the markers', function () {
+    $this->fake->seed($this->home, Fake::event('a', 'Uno', '2026-10-10 09:00', '2026-10-10 10:00'));
+    syncNow($this->job);
+
+    // Same event, but stored without the X- properties carrying the key.
+    $copy = $this->fake->eventsOn($this->target)[0];
+    $this->fake->calendars['google/agenda'] = [];
+    $this->fake->seed($this->target, Fake::event($copy->uid, $copy->title, '2026-10-10 09:00', '2026-10-10 10:00', ['remoteId' => $copy->remoteId]));
+
+    expect(syncNow($this->job)->updated_count)->toBe(0);
+});
+
+it('does not restore copies when the target cannot be read, but keeps syncing', function () {
+    $this->fake->seed($this->home, Fake::event('a', 'Uno', '2026-10-10 09:00', '2026-10-10 10:00'));
+    syncNow($this->job);
+
+    $this->fake->calendars['google/agenda'] = [];
+    $this->fake->readFailures['google/agenda'] = new ProviderException('Limite di richieste Google raggiunto');
+    $this->fake->seed($this->home, Fake::event('b', 'Due', '2026-10-11 09:00', '2026-10-11 10:00'));
+    $run = syncNow($this->job);
+
+    expect($run->status)->toBe(SyncRunStatus::Partial)
+        ->and($run->created_count)->toBe(1)
+        ->and($run->updated_count)->toBe(0)
+        ->and($run->errors[0]['message'])->toContain('Destinazione non leggibile');
+});
+
+it('fails when existing target events must be skipped but the target cannot be read', function () {
+    $this->job->update(['skip_existing_in_target' => true]);
+    $this->fake->seed($this->home, Fake::event('a', 'Uno', '2026-10-10 09:00', '2026-10-10 10:00'));
+    $this->fake->readFailures['google/agenda'] = new ProviderException('Google non raggiungibile');
+
+    $run = syncNow($this->job);
+
+    expect($run->status)->toBe(SyncRunStatus::Failed)
+        ->and($run->message)->toContain('Impossibile leggere la destinazione')
+        ->and($this->fake->writes)->toBeEmpty();
 });

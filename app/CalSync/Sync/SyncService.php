@@ -6,12 +6,14 @@ use App\CalSync\Exceptions\ProviderException;
 use App\CalSync\Support\SecretRedactor;
 use App\Enums\SyncRunStatus;
 use App\Enums\SyncTrigger;
+use App\Jobs\SyncJobRunner;
 use App\Models\SyncJob;
 use App\Models\SyncRun;
 use Illuminate\Support\Str;
 
 /**
- * Runs a sync job and records the outcome as a SyncRun (dry-run or real).
+ * Runs a sync job and records the outcome as a SyncRun: dry-run, real sync or removal
+ * of the job copies.
  */
 final class SyncService
 {
@@ -26,9 +28,28 @@ final class SyncService
         return $this->execute($job->runs()->create(['triggered_by' => $trigger, 'dry_run' => true]));
     }
 
+    /**
+     * Synchronous run (CLI, tests). The GUI and the scheduler go through queue().
+     */
     public function run(SyncJob $job, SyncTrigger $trigger = SyncTrigger::Manual): SyncRun
     {
         return $this->execute($job->runs()->create(['triggered_by' => $trigger, 'dry_run' => false]));
+    }
+
+    /**
+     * Queue a run for the worker. A purge also disables the job, otherwise the next
+     * scheduled run would create the copies again.
+     */
+    public function queue(SyncJob $job, SyncTrigger $trigger, bool $purge = false): SyncRun
+    {
+        if ($purge) {
+            $job->update(['enabled' => false]);
+        }
+
+        $run = $job->runs()->create(['triggered_by' => $trigger, 'purge' => $purge]);
+        SyncJobRunner::dispatch($run->id);
+
+        return $run;
     }
 
     /**
@@ -40,7 +61,7 @@ final class SyncService
         $run->update(['status' => SyncRunStatus::Running, 'started_at' => now()]);
 
         try {
-            $plan = $this->engine->plan($job);
+            $plan = $run->purge ? $this->engine->planPurge($job) : $this->engine->plan($job);
         } catch (ProviderException $e) {
             return $this->finish($run, SyncRunStatus::Failed, ['message' => $this->clean($e->getMessage())]);
         }
@@ -73,7 +94,9 @@ final class SyncService
             default => SyncRunStatus::Success,
         };
 
-        $job->forceFill(['last_run_at' => now()])->save();
+        if (! $run->purge) {
+            $job->forceFill(['last_run_at' => now()])->save();
+        }
 
         return $this->finish($run, $status, [
             ...$base,
@@ -82,9 +105,13 @@ final class SyncService
             'deleted_count' => $result->deleted,
             'error_count' => count($errors),
             'errors' => array_slice($errors, 0, self::MAX_ERRORS) ?: null,
-            'message' => $result->fatal !== null
-                ? 'Interrotto: '.$this->clean($result->fatal)
-                : sprintf('%d copie già allineate.', $plan->unchanged),
+            // What was attempted; failed operations are also listed in errors.
+            'plan' => $plan->preview(self::MAX_PLAN_ENTRIES) ?: null,
+            'message' => match (true) {
+                $result->fatal !== null => 'Interrotto: '.$this->clean($result->fatal),
+                $run->purge => sprintf('Copie rimosse: %d su %d.', $result->deleted, count($plan->operations)),
+                default => sprintf('%d copie già allineate.', $plan->unchanged),
+            },
         ]);
     }
 

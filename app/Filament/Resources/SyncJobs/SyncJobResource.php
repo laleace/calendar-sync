@@ -6,6 +6,7 @@ use App\Filament\Resources\SyncJobs\Pages\CreateSyncJob;
 use App\Filament\Resources\SyncJobs\Pages\DryRunSyncJob;
 use App\Filament\Resources\SyncJobs\Pages\EditSyncJob;
 use App\Filament\Resources\SyncJobs\Pages\ListSyncJobs;
+use App\Filament\Resources\SyncJobs\RelationManagers\RunsRelationManager;
 use App\Filament\Resources\SyncJobs\Schemas\SyncJobForm;
 use App\Filament\Resources\SyncJobs\Tables\SyncJobsTable;
 use App\Models\SyncJob;
@@ -42,6 +43,13 @@ class SyncJobResource extends Resource
     public static function table(Table $table): Table
     {
         return SyncJobsTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RunsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

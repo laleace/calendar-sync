@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4, 5, 6.
+> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4, 5, 6, 7.
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
@@ -425,6 +425,28 @@ Idempotenza:
     - sorgente rimossa dal job: le sue copie vengono cancellate;
     - errori di credenziali o di rete sul target: il run si ferma e lo stato dell'account viene aggiornato;
     - update su una copia cancellata a mano: la copia viene ricreata.
-  - Limite noto: una copia cancellata a mano sul target torna solo quando il suo evento sorgente cambia, perché il motore non rilegge il target a ogni run. È voluto, per risparmiare una lettura per run.
+  - ~~Limite noto: una copia cancellata a mano torna solo quando la sorgente cambia.~~ Risolto allo step 7: il target viene riletto a ogni run.
   - Il dry-run ha una pagina dedicata (`/admin/sync-jobs/{id}/dry-run`): esegue il piano all'apertura, lo salva come SyncRun `dry_run` e lo mostra filtrabile. Si è scelta una pagina invece di un modale perché il modale rischierebbe di rieseguire le letture a ogni render.
   - I calendari omonimi nello stesso account vengono distinti nelle select con timezone e id.
+- **Step 7.**
+  - Esecuzione:
+    - `SyncService::queue()` crea il run in stato `queued` e lo affida a `SyncJobRunner` sulla coda `sync`;
+    - un `Cache::lock("calsync:job:{id}")` impedisce due sync contemporanei dello stesso job: il secondo diventa `skipped`;
+    - il worker usa `tries=1` e `timeout` di 600 s, con lock da 900 s; `failed()` marca il run come fallito.
+  - Scheduler:
+    - `calsync:dispatch-due` gira ogni minuto con `withoutOverlapping`;
+    - non accoda un nuovo run se il precedente è ancora in coda o in esecuzione;
+    - marca come falliti i run `running` da più di 30 minuti (worker morto) e quelli `queued` da più di 6 ore (nessun worker).
+  - Ripristino delle copie: il target viene riletto a ogni run. Una copia mancante, riconosciuta per chiave del marker o per id remoto, viene ricreata. Se il target non è leggibile niente ripristino, salvo con `skip_existing_in_target`, che in quel caso fa fallire il run perché rischierebbe di creare doppioni.
+  - "Rimuovi copie": un run `purge` (nuova colonna `sync_runs.purge`) elimina tutte le copie del job, anche fuori finestra, e disattiva il job.
+  - Comando `calsync:run {job} [--dry-run]` per lanciare un job da terminale. Usa lo stesso lock del worker.
+  - GUI:
+    - azione "Esegui ora", disattivata se c'è già un run in corso;
+    - "Rimuovi copie" con conferma;
+    - "Storico run": lista aggiornata ogni 5 s, filtri, dettaglio con errori e operazioni, eseguite o previste;
+    - storico nella pagina di modifica del job;
+    - widget in dashboard: statistiche e ultimi run;
+    - banner se ci sono run in coda da più di 2 minuti.
+  - `php artisan dev` avvia server, worker sulle code `sync,default`, scheduler e log. Rimosso lo scaffold frontend (Vite, `package.json`), che Filament non usa.
+  - Anche i sync veri salvano l'elenco delle operazioni in `sync_runs.plan`, così lo storico mostra cosa è stato creato, aggiornato o eliminato.
+  - Verifica end-to-end su HTTP reale contro un finto server CalDAV: scheduler → worker → 11 PUT; secondo giro con sole 2 letture; copia cancellata a mano ripristinata; rimozione di tutte le copie.

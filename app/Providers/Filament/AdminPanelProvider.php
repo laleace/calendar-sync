@@ -2,7 +2,9 @@
 
 namespace App\Providers\Filament;
 
+use App\Enums\SyncRunStatus;
 use App\Models\Account;
+use App\Models\SyncRun;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -50,6 +52,14 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::CONTENT_START,
                 fn (): View => view('filament.account-alerts', [
                     'accounts' => Account::needingAttention()->orderBy('name')->get(['id', 'name', 'type', 'status', 'status_message']),
+                ]),
+            )
+            // Runs waiting for minutes mean no queue worker is running.
+            ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): View => view('filament.queue-alert', [
+                    'minutes' => 2,
+                    'stuck' => SyncRun::where('status', SyncRunStatus::Queued)->where('created_at', '<', now()->subMinutes(2))->count(),
                 ]),
             )
             ->middleware([

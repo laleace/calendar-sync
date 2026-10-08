@@ -3,6 +3,7 @@
 namespace App\CalSync\Sync;
 
 use App\CalSync\Dto\EventDto;
+use App\CalSync\Dto\EventList;
 use App\CalSync\Exceptions\AuthenticationFailed;
 use App\CalSync\Exceptions\EventNotFound;
 use App\CalSync\Exceptions\ProviderException;
@@ -22,7 +23,8 @@ use Illuminate\Support\Collection;
  * plan() reads and compares, apply() writes. Safety rules:
  * - only events this job created (its event_mappings) are ever updated or deleted;
  * - a source that could not be read completely never causes deletes;
- * - copies of events that simply left the sync window are kept.
+ * - copies of events that simply left the sync window are kept;
+ * - copies deleted by hand on the target are restored (the target is read on every run).
  */
 final class SyncEngine
 {
@@ -49,12 +51,14 @@ final class SyncEngine
         $this->ensureUsableTarget($target);
 
         $mappings = $job->mappings()->with(['sourceCalendar', 'targetCalendar.account'])->get()->keyBy('source_key');
-        $foreignTargetUids = $job->skip_existing_in_target ? $this->foreignUids($job, $from, $to) : [];
+        $problems = [];
+        $targetEvents = $this->readTarget($job, $from, $to, $problems);
+        $foreignTargetUids = $this->foreignUids($job, $targetEvents);
+        $present = $this->presentCopies($job, $targetEvents);
 
         /** @var array<string, array{calendar: Calendar, source: EventDto, target: EventDto, hash: string}> $desired */
         $desired = [];
         $skipped = [];
-        $problems = [];
         $unreliable = [];
 
         foreach ($job->sources as $calendar) {
@@ -94,6 +98,8 @@ final class SyncEngine
                 $operations[] = $create;
             } elseif ($mapping->content_hash !== $item['hash']) {
                 $operations[] = new PlannedOperation(OperationType::Update, $key, $item['calendar'], $item['source'], $item['target'], $item['hash'], $mapping);
+            } elseif ($present !== null && ! isset($present['keys'][$key]) && ! isset($present['ids'][$mapping->target_event_id])) {
+                $operations[] = new PlannedOperation(OperationType::Update, $key, $item['calendar'], $item['source'], $item['target'], $item['hash'], $mapping, 'copia cancellata nella destinazione: la ripristino');
             } else {
                 $unchanged++;
             }
@@ -121,6 +127,21 @@ final class SyncEngine
         }
 
         return new SyncPlan($from, $to, $operations, $unchanged, $skipped, $problems);
+    }
+
+    /**
+     * Removal of every copy the job created, whatever its date.
+     */
+    public function planPurge(SyncJob $job, ?CarbonImmutable $now = null): SyncPlan
+    {
+        [$from, $to] = $job->syncWindow($now);
+
+        $operations = $job->mappings()->with(['sourceCalendar', 'targetCalendar.account'])->get()
+            ->map(fn (EventMapping $mapping) => new PlannedOperation(OperationType::Delete, $mapping->source_key, mapping: $mapping, reason: 'rimozione delle copie del job'))
+            ->values()
+            ->all();
+
+        return new SyncPlan($from, $to, $operations);
     }
 
     public function apply(SyncJob $job, SyncPlan $plan): SyncResult
@@ -212,18 +233,78 @@ final class SyncEngine
     }
 
     /**
+     * Events on the target in the window, null when they cannot be read completely. The
+     * target is needed to skip events already there and to restore deleted copies.
+     *
+     * @param  list<string>  $problems
+     *
+     * @throws ProviderException when skip_existing_in_target cannot be honoured.
+     */
+    private function readTarget(SyncJob $job, CarbonImmutable $from, CarbonImmutable $to, array &$problems): ?EventList
+    {
+        try {
+            $list = $this->providers->for($job->target->account)->listEvents($job->target, $from, $to);
+        } catch (ProviderException $e) {
+            if ($job->skip_existing_in_target) {
+                throw new ProviderException("Impossibile leggere la destinazione per saltare gli eventi già presenti: {$e->getMessage()}", previous: $e);
+            }
+
+            $problems[] = "Destinazione non leggibile ({$e->getMessage()}): le copie cancellate a mano non verranno ripristinate in questo giro.";
+
+            return null;
+        }
+
+        if (! $list->isComplete()) {
+            $problems[] = 'Destinazione letta in modo incompleto: le copie cancellate a mano non verranno ripristinate in questo giro.';
+
+            return $job->skip_existing_in_target ? $list : null;
+        }
+
+        return $list;
+    }
+
+    /**
      * UIDs of target events this job did not create (e.g. the original invitation).
      *
      * @return array<string, true>
      */
-    private function foreignUids(SyncJob $job, CarbonImmutable $from, CarbonImmutable $to): array
+    private function foreignUids(SyncJob $job, ?EventList $targetEvents): array
     {
-        $list = $this->providers->for($job->target->account)->listEvents($job->target, $from, $to);
+        if (! $job->skip_existing_in_target || $targetEvents === null) {
+            return [];
+        }
 
-        return collect($list->events)
+        return collect($targetEvents->events)
             ->reject(fn (EventDto $event) => ($event->markers['job'] ?? null) === (string) $job->id)
             ->mapWithKeys(fn (EventDto $event) => [$event->uid => true])
             ->all();
+    }
+
+    /**
+     * Copies of this job found on the target, by source key and by remote id (the id
+     * covers servers that drop the X- properties carrying the key).
+     *
+     * @return array{keys: array<string, true>, ids: array<string, true>}|null
+     */
+    private function presentCopies(SyncJob $job, ?EventList $targetEvents): ?array
+    {
+        if ($targetEvents === null || ! $targetEvents->isComplete()) {
+            return null;
+        }
+
+        $present = ['keys' => [], 'ids' => []];
+
+        foreach ($targetEvents->events as $event) {
+            if (filled($event->remoteId)) {
+                $present['ids'][$event->remoteId] = true;
+            }
+
+            if (($event->markers['job'] ?? null) === (string) $job->id && isset($event->markers['key'])) {
+                $present['keys'][$event->markers['key']] = true;
+            }
+        }
+
+        return $present;
     }
 
     private function create(SyncJob $job, Calendar $target, PlannedOperation $operation, SyncResult $result): void

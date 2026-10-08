@@ -3,10 +3,11 @@
 namespace App\Filament\Resources\SyncJobs\Pages;
 
 use App\CalSync\Sync\SyncService;
+use App\Filament\Actions\RunSyncNowAction;
 use App\Filament\Resources\SyncJobs\SyncJobResource;
+use App\Filament\Support\PlanFormatter;
 use App\Models\SyncJob;
 use App\Models\SyncRun;
-use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
@@ -39,13 +40,6 @@ class DryRunSyncJob extends Page implements HasTable
 
     public ?int $runId = null;
 
-    public const OPERATIONS = [
-        'create' => ['Crea', 'success'],
-        'update' => ['Aggiorna', 'info'],
-        'delete' => ['Elimina', 'danger'],
-        'skip' => ['Salta', 'gray'],
-    ];
-
     public function mount(int|string $record, SyncService $sync): void
     {
         $this->record = $this->resolveRecord($record);
@@ -77,6 +71,8 @@ class DryRunSyncJob extends Page implements HasTable
                     unset($this->run);
                     $this->resetTable();
                 }),
+            RunSyncNowAction::make()
+                ->record($this->record),
             EditAction::make()
                 ->url(fn (): string => SyncJobResource::getUrl('edit', ['record' => $this->record])),
         ];
@@ -90,8 +86,8 @@ class DryRunSyncJob extends Page implements HasTable
                 TextColumn::make('op')
                     ->label('Operazione')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => self::OPERATIONS[$state][0] ?? $state)
-                    ->color(fn (string $state): string => self::OPERATIONS[$state][1] ?? 'gray'),
+                    ->formatStateUsing(fn (string $state): string => PlanFormatter::operationLabel($state))
+                    ->color(fn (string $state): string => PlanFormatter::operationColor($state)),
                 TextColumn::make('when')
                     ->label('Quando'),
                 TextColumn::make('title')
@@ -108,7 +104,7 @@ class DryRunSyncJob extends Page implements HasTable
             ->filters([
                 SelectFilter::make('op')
                     ->label('Operazione')
-                    ->options(collect(self::OPERATIONS)->map(fn (array $op) => $op[0])->all()),
+                    ->options(collect(PlanFormatter::OPERATIONS)->except('read')->map(fn (array $op) => $op[0])->all()),
             ])
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(50)
@@ -118,45 +114,17 @@ class DryRunSyncJob extends Page implements HasTable
 
     private function paginatePlan(int $page, int|string $perPage, ?string $operation): LengthAwarePaginator
     {
-        $timezone = config('calsync.timezone');
         $rows = collect($this->run->plan ?? [])
             ->when(filled($operation), fn ($rows) => $rows->where('op', $operation))
             ->values()
             ->map(fn (array $row, int $index) => [
                 ArrayRecord::getKeyName() => (string) $index,
                 ...$row,
-                'when' => self::formatWhen($row, $timezone),
+                'when' => PlanFormatter::when($row),
             ]);
 
         $perPage = $perPage === 'all' ? max(1, $rows->count()) : (int) $perPage;
 
         return new LengthAwarePaginator($rows->forPage($page, $perPage)->values()->all(), $rows->count(), $perPage, $page);
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private static function formatWhen(array $row, string $timezone): string
-    {
-        if (blank($row['start'] ?? null)) {
-            return '—';
-        }
-
-        if ($row['all_day'] ?? false) {
-            $start = CarbonImmutable::parse($row['start']);
-            $last = filled($row['end'] ?? null) ? CarbonImmutable::parse($row['end'])->subDay() : $start;
-
-            return $start->format('d/m/Y').($last->isSameDay($start) ? '' : ' → '.$last->format('d/m/Y'));
-        }
-
-        $start = CarbonImmutable::parse($row['start'])->setTimezone($timezone);
-
-        if (blank($row['end'] ?? null)) {
-            return $start->format('d/m/Y H:i');
-        }
-
-        $end = CarbonImmutable::parse($row['end'])->setTimezone($timezone);
-
-        return $start->format('d/m/Y H:i').' → '.($end->isSameDay($start) ? $end->format('H:i') : $end->format('d/m/Y H:i'));
     }
 }

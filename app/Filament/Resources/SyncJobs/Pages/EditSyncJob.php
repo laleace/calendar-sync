@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\SyncJobs\Pages;
 
 use App\Filament\Actions\DryRunAction;
+use App\Filament\Actions\PurgeCopiesAction;
+use App\Filament\Actions\RunSyncNowAction;
 use App\Filament\Resources\SyncJobs\SyncJobResource;
 use App\Models\SyncJob;
 use Filament\Actions\DeleteAction;
@@ -21,9 +23,13 @@ class EditSyncJob extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            RunSyncNowAction::make(),
             DryRunAction::make(),
+            PurgeCopiesAction::make(),
             DeleteAction::make()
-                ->modalDescription('Le copie già create da questo job resteranno nel calendario di destinazione e non saranno più gestite.'),
+                ->modalDescription(fn (SyncJob $record): string => $record->mappings()->exists()
+                    ? sprintf('Le %d copie create da questo job resteranno nel calendario di destinazione e non saranno più gestite. Per toglierle usa prima "Rimuovi copie".', $record->mappings()->count())
+                    : 'Il job verrà eliminato insieme al suo storico.'),
         ];
     }
 
