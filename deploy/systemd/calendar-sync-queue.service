@@ -1,0 +1,23 @@
+# /etc/systemd/system/calendar-sync-queue.service
+[Unit]
+Description=calendar-sync queue worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=calsync
+Group=calsync
+WorkingDirectory=/var/www/calendar-sync
+# --timeout > SyncJobRunner::$timeout (600 s); --max-time restarts the worker hourly
+# (and "php artisan queue:restart" after an update) so new code is loaded.
+ExecStart=/usr/bin/php artisan queue:work database --queue=sync,default --tries=1 --timeout=660 --sleep=3 --max-time=3600 --memory=256
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+# Extra sandboxing, if the container supports mount namespaces (Proxmox: features nesting=1):
+# PrivateTmp=true
+# ProtectSystem=full
+# ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

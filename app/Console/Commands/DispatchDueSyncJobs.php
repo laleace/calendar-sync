@@ -10,6 +10,7 @@ use App\Models\SyncRun;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 
 #[Signature('calsync:dispatch-due')]
 #[Description('Queue a run for every enabled sync job that is due (run by the scheduler every minute)')]
@@ -21,8 +22,12 @@ class DispatchDueSyncJobs extends Command
     /** A run still queued after this long was never picked up: no worker. */
     public const STALE_QUEUED_HOURS = 6;
 
+    /** Cache key with the time of the last scheduler tick, checked by calsync:doctor. */
+    public const HEARTBEAT_KEY = 'calsync:scheduler:last-tick';
+
     public function handle(SyncService $sync): int
     {
+        Cache::forever(self::HEARTBEAT_KEY, now()->toIso8601String());
         $this->failStaleRuns();
 
         $due = SyncJob::query()

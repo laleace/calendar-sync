@@ -1,6 +1,7 @@
 <?php
 
 use App\CalSync\Sync\SyncService;
+use App\Console\Commands\DispatchDueSyncJobs;
 use App\Enums\SyncRunStatus;
 use App\Enums\SyncTrigger;
 use App\Jobs\SyncJobRunner;
@@ -178,4 +179,12 @@ it('refuses to run a job from the command line while it is running', function ()
     $this->artisan('calsync:run', ['job' => 999])->assertFailed();
 
     expect($this->fake->writes)->toBeEmpty();
+});
+
+it('records a heartbeat on every scheduler tick', function () {
+    Queue::fake();
+
+    $this->artisan('calsync:dispatch-due')->assertSuccessful();
+
+    expect(Cache::get(DispatchDueSyncJobs::HEARTBEAT_KEY))->toBe(now()->toIso8601String());
 });

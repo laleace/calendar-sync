@@ -1,7 +1,10 @@
 # calendar-sync
 
 Sincronizzazione unidirezionale e aggregazione di calendari (iCloud / CalDAV / Google) con GUI Filament.
-Piano e decisioni di progetto: [docs/PIANO.md](docs/PIANO.md). Guida al deploy: `deploy/README.md` (step 9).
+Documentazione:
+- [docs/PIANO.md](docs/PIANO.md): piano e decisioni di progetto;
+- [deploy/README.md](deploy/README.md): deploy su container LXC Debian 12 (solo LAN);
+- [docs/google-oauth.md](docs/google-oauth.md): credenziali Google OAuth.
 
 ## Sviluppo locale
 
@@ -26,6 +29,7 @@ Comandi utili:
 | `php artisan calsync:list-events {calendario} --from= --to=` | Eventi di un calendario, ricorrenze espanse |
 | `php artisan calsync:run {job} [--dry-run]` | Esegue un job in primo piano e stampa l'esito |
 | `php artisan calsync:dispatch-due` | Accoda i job attivi in scadenza (lo lancia lo scheduler ogni minuto) |
+| `php artisan calsync:doctor` | Controlla configurazione, database, scheduler e worker |
 
 ## Test
 

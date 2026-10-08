@@ -1,0 +1,3 @@
+# /etc/cron.d/calendar-sync
+# Alternative to calendar-sync-scheduler.service: use one of the two, not both.
+* * * * * calsync cd /var/www/calendar-sync && /usr/bin/php artisan schedule:run >> /dev/null 2>&1

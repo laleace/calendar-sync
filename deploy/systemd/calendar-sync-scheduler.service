@@ -1,0 +1,19 @@
+# /etc/systemd/system/calendar-sync-scheduler.service
+# Runs the Laravel scheduler (calsync:dispatch-due every minute, model:prune daily).
+# Alternative: the cron entry in deploy/cron/calendar-sync (use one of the two, not both).
+[Unit]
+Description=calendar-sync scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=calsync
+Group=calsync
+WorkingDirectory=/var/www/calendar-sync
+ExecStart=/usr/bin/php artisan schedule:work
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

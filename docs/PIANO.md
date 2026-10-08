@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4, 5, 6, 7.
+> Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7 e 9; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
@@ -337,7 +337,7 @@ Idempotenza:
 | 6 | `SyncEngine` (`plan` e `apply`), `EventTransformer`, CRUD SyncJob, dry-run nella GUI | Test feature: create, update, delete, merge, finestra temporale, sorgente in errore, Google → Google sullo stesso account senza loop |
 | 7 | `SyncJobRunner`, lock, `calsync:dispatch-due`, "Esegui ora", storico SyncRun, azione "Rimuovi copie del job" | Test di coda, lock e scheduler. Prova reale con `queue:work` |
 | 8 | ~~API per n8n~~: eliminato il 2026-10-08 | — |
-| 9 | `deploy/` (nginx, pool php-fpm, systemd per coda e scheduler, cron alternativo, env di esempio) e README operativo | Checklist di deploy sul tuo LXC |
+| 9 | `deploy/` (nginx, pool php-fpm, systemd per coda e scheduler, cron alternativo, env di esempio, script di aggiornamento) e README operativo. Configurazione solo LAN | `calsync:doctor` e checklist in `deploy/README.md` |
 
 ## 7. Decisioni dalle risposte (2026-10-07)
 
@@ -450,3 +450,11 @@ Idempotenza:
   - `php artisan dev` avvia server, worker sulle code `sync,default`, scheduler e log. Rimosso lo scaffold frontend (Vite, `package.json`), che Filament non usa.
   - Anche i sync veri salvano l'elenco delle operazioni in `sync_runs.plan`, così lo storico mostra cosa è stato creato, aggiornato o eliminato.
   - Verifica end-to-end su HTTP reale contro un finto server CalDAV: scheduler → worker → 11 PUT; secondo giro con sole 2 letture; copia cancellata a mano ripristinata; rimozione di tutte le copie.
+- **Step 9.**
+  - Rete: solo LAN (decisione del 2026-10-08). Record DNS Cloudflare "DNS only" verso l'IP privato e certificato Let's Encrypt con challenge DNS-01 (token Cloudflare limitato a una zona). nginx accetta solo reti private e localhost; localhost serve per un eventuale futuro Cloudflare Tunnel.
+  - nginx 1.22 di Debian 12, quindi `listen 443 ssl http2` e non `http2 on`. Serve solo `index.php`, mai file nascosti o altri PHP. HSTS e header di sicurezza.
+  - PHP-FPM ha un pool dedicato con utente `calsync`, socket proprio e `pm=ondemand`. OPcache ha `validate_timestamps=0`: `update.sh` ricarica FPM.
+  - systemd: worker della coda (`--timeout=660 --max-time=3600`) e scheduler (`schedule:work`), con cron come alternativa. Il sandboxing extra resta commentato, perché nei container unprivileged può fallire senza `nesting=1`.
+  - Bug evitato: con il default di Laravel (`retry_after` a 90 s) un sync lungo sarebbe stato consegnato a un secondo worker mentre era ancora in corso. Ora vale 900 s, sopra il timeout di 600 s del runner, e un test lo garantisce.
+  - `calsync:doctor` controlla APP_KEY, debug, HTTPS, cookie sicuri, `retry_after`, store dei lock, OAuth e redirect URI, database, admin, battito dello scheduler e coda ferma.
+  - Database di produzione separato da quello di sviluppo, altrimenti il `php artisan dev` del Mac eseguirebbe i job di produzione. `APP_KEY` va salvata: cifra le credenziali.
