@@ -86,7 +86,7 @@ it('validates the account form', function (array $data, array $errors) {
     'missing password' => [['type' => 'icloud_caldav', 'name' => 'iCloud', 'username' => 'me@icloud.com'], ['password' => 'required']],
     'generic without url' => [['type' => 'caldav_generic', 'name' => 'Nextcloud', 'username' => 'me', 'password' => 'secret-pass'], ['base_url' => 'required']],
     'generic with bad url' => [['type' => 'caldav_generic', 'name' => 'Nextcloud', 'base_url' => 'not a url', 'username' => 'me', 'password' => 'secret-pass'], ['base_url']],
-    'google not available yet' => [['type' => 'google', 'name' => 'Google', 'username' => 'me', 'password' => 'secret-pass'], ['type']],
+    'google without OAuth configuration' => [['type' => 'google', 'name' => 'Google'], ['type']],
 ]);
 
 it('never sends the stored password to the browser', function () {
@@ -199,4 +199,54 @@ it('lists the account calendars with their state', function () {
         ->assertCanSeeTableRecords([$active, $missing])
         ->assertSee('Non più trovato')
         ->assertActionHasUrl(TestAction::make('preview')->table($active), CalendarPreview::getUrl(['calendar' => $active->id]));
+});
+
+it('creates a Google account and sends the user to the consent screen', function () {
+    configureGoogleOAuth();
+
+    Livewire::test(CreateAccount::class)
+        ->fillForm(['type' => AccountType::Google->value, 'name' => 'Google personale'])
+        ->assertFormFieldHidden('username')
+        ->assertFormFieldHidden('password')
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertRedirect(route('oauth.google.redirect', Account::sole()));
+
+    expect(Account::sole())
+        ->type->toBe(AccountType::Google)
+        ->credentials->toBe([])
+        ->base_url->toBeNull();
+
+    Http::assertNothingSent();
+});
+
+it('offers to connect or reconnect Google accounts only', function () {
+    $google = Account::factory()->google()->create();
+    $notConnected = Account::factory()->google()->create(['credentials' => []]);
+
+    Livewire::test(ViewAccount::class, ['record' => $google->id])
+        ->assertActionVisible('connectGoogle')
+        ->assertActionHasLabel('connectGoogle', 'Riconnetti Google')
+        ->assertActionHasUrl('connectGoogle', route('oauth.google.redirect', $google));
+
+    Livewire::test(ViewAccount::class, ['record' => $notConnected->id])
+        ->assertActionHasLabel('connectGoogle', 'Connetti con Google');
+
+    Livewire::test(ViewAccount::class, ['record' => Account::factory()->create()->id])
+        ->assertActionHidden('connectGoogle');
+});
+
+it('edits only the name of a Google account', function () {
+    $account = Account::factory()->google()->create();
+    $credentials = $account->credentials;
+
+    Livewire::test(EditAccount::class, ['record' => $account->id])
+        ->assertFormFieldHidden('password')
+        ->fillForm(['name' => 'Google lavoro'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($account->fresh())
+        ->name->toBe('Google lavoro')
+        ->credentials->toBe($credentials);
 });

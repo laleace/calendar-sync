@@ -17,7 +17,9 @@ final readonly class EventDto
      * @param  CarbonImmutable  $start  In the event timezone. All-day: midnight of the first day.
      * @param  CarbonImmutable  $end  Exclusive. All-day: midnight of the day after the last day.
      * @param  string  $timezone  IANA identifier; floating and all-day events use the calendar timezone.
-     * @param  array<string, string>  $markers  calendar-sync markers found on the event (job, source, uid).
+     * @param  array<string, string>  $markers  calendar-sync markers (job, source, key, uid): read from
+     *                                          the event, or to be written on a copy.
+     * @param  bool  $declined  The account owner declined the invitation (when the provider exposes it).
      * @param  string|null  $remoteId  CalDAV resource URL or Google event id.
      */
     public function __construct(
@@ -35,6 +37,7 @@ final readonly class EventDto
         public array $markers = [],
         public ?string $remoteId = null,
         public ?string $etag = null,
+        public bool $declined = false,
     ) {}
 
     /**

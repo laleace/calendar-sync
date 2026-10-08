@@ -1,0 +1,69 @@
+{
+  "kind": "calendar#calendarList",
+  "etag": "\"p33c9n7mp0iqv20o\"",
+  "nextSyncToken": "CKCbrKvpn_8CEhdtYXJpby5yb3NzaUBnbWFpbC5jb20=",
+  "items": [
+    {
+      "kind": "calendar#calendarListEntry",
+      "etag": "\"1759312345678000\"",
+      "id": "mario.rossi@gmail.com",
+      "summary": "mario.rossi@gmail.com",
+      "timeZone": "Europe/Rome",
+      "colorId": "14",
+      "backgroundColor": "#9fe1e7",
+      "foregroundColor": "#000000",
+      "selected": true,
+      "accessRole": "owner",
+      "defaultReminders": [{ "method": "popup", "minutes": 30 }],
+      "conferenceProperties": { "allowedConferenceSolutionTypes": ["hangoutsMeet"] },
+      "primary": true
+    },
+    {
+      "kind": "calendar#calendarListEntry",
+      "etag": "\"1759312345679000\"",
+      "id": "c_8f2a1b3c4d5e6f70@group.calendar.google.com",
+      "summary": "Lavoro",
+      "summaryOverride": "Lavoro (ufficio)",
+      "timeZone": "Europe/Rome",
+      "colorId": "8",
+      "backgroundColor": "#16a765",
+      "foregroundColor": "#000000",
+      "hidden": true,
+      "accessRole": "writer",
+      "defaultReminders": []
+    },
+    {
+      "kind": "calendar#calendarListEntry",
+      "etag": "\"1759312345680000\"",
+      "id": "it.italian#holiday@group.v.calendar.google.com",
+      "summary": "Festività in Italia",
+      "description": "Festività e ricorrenze in Italia",
+      "timeZone": "Europe/Rome",
+      "colorId": "11",
+      "backgroundColor": "#92e1c0",
+      "foregroundColor": "#000000",
+      "selected": true,
+      "accessRole": "reader",
+      "defaultReminders": []
+    },
+    {
+      "kind": "calendar#calendarListEntry",
+      "etag": "\"1759312345681000\"",
+      "id": "collega@example.com",
+      "summary": "collega@example.com",
+      "timeZone": "Europe/Rome",
+      "backgroundColor": "#ac725e",
+      "foregroundColor": "#000000",
+      "accessRole": "freeBusyReader",
+      "defaultReminders": []
+    },
+    {
+      "kind": "calendar#calendarListEntry",
+      "etag": "\"1759312345682000\"",
+      "id": "c_dead0000beef@group.calendar.google.com",
+      "summary": "Vecchio calendario",
+      "accessRole": "owner",
+      "deleted": true
+    }
+  ]
+}

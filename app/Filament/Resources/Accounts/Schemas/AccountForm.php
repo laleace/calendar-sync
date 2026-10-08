@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Accounts\Schemas;
 
+use App\CalSync\Google\GoogleClientFactory;
 use App\Enums\AccountType;
 use App\Filament\Resources\Accounts\AccountResource;
 use Filament\Forms\Components\Select;
@@ -20,6 +21,8 @@ class AccountForm
     public static function configure(Schema $schema): Schema
     {
         $isIcloud = fn (Get $get): bool => AccountResource::typeFrom($get) === AccountType::IcloudCaldav;
+        $isCalDav = fn (Get $get): bool => AccountResource::typeFrom($get)?->isCalDav() ?? true;
+        $googleConfigured = app(GoogleClientFactory::class)->isConfigured();
 
         return $schema
             ->components([
@@ -29,15 +32,20 @@ class AccountForm
                     ->schema([
                         Select::make('type')
                             ->label('Tipo')
-                            ->options(self::typeOptions())
+                            ->options(collect(AccountType::cases())->mapWithKeys(fn (AccountType $type) => [$type->value => $type->getLabel()])->all())
+                            // Only new Google accounts need the OAuth client; existing ones stay editable.
+                            ->disableOptionWhen(fn (string $value, string $operation): bool => $operation === 'create' && $value === AccountType::Google->value && ! $googleConfigured)
                             ->default(AccountType::IcloudCaldav->value)
                             ->required()
                             ->selectablePlaceholder(false)
                             ->live()
                             ->disabledOn('edit')
-                            ->helperText(fn (string $operation): ?string => $operation === 'create'
-                                ? 'Gli account Google si collegano con OAuth (disponibile a breve).'
-                                : null),
+                            ->helperText(fn (Get $get, string $operation): ?string => match (true) {
+                                $operation !== 'create' => null,
+                                AccountResource::typeFrom($get) === AccountType::Google => 'Dopo il salvataggio verrai portato su Google per autorizzare l\'accesso al calendario.',
+                                ! $googleConfigured => 'Per gli account Google imposta prima GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET nel .env (vedi docs/google-oauth.md).',
+                                default => null,
+                            }),
 
                         TextInput::make('name')
                             ->label('Nome')
@@ -57,6 +65,7 @@ class AccountForm
 
                         TextInput::make('username')
                             ->label(fn (Get $get): string => $isIcloud($get) ? 'Apple ID (email)' : 'Username')
+                            ->visible($isCalDav)
                             ->required()
                             ->maxLength(255)
                             ->autocomplete('off'),
@@ -65,6 +74,7 @@ class AccountForm
                             ->label(fn (Get $get): string => $isIcloud($get) ? 'Password per app' : 'Password')
                             ->password()
                             ->revealable()
+                            ->visible($isCalDav)
                             ->autocomplete('new-password')
                             ->required(fn (string $operation): bool => $operation === 'create')
                             ->dehydrated(fn (?string $state): bool => filled($state))
@@ -76,16 +86,5 @@ class AccountForm
                             }),
                     ]),
             ]);
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private static function typeOptions(): array
-    {
-        return collect(AccountType::cases())
-            ->filter(fn (AccountType $type) => $type->isCalDav())
-            ->mapWithKeys(fn (AccountType $type) => [$type->value => $type->getLabel()])
-            ->all();
     }
 }

@@ -1,5 +1,5 @@
 @php
-    use App\Enums\AccountStatus;
+    use App\Enums\AccountType;
     use App\Filament\Resources\Accounts\AccountResource;
 @endphp
 
@@ -13,9 +13,11 @@
                 :description="$account->status_message"
             >
                 <x-slot name="footer">
-                    <x-filament::link :href="AccountResource::getUrl('edit', ['record' => $account])">
-                        {{ $account->status === AccountStatus::TokenExpired ? 'Riconnetti' : 'Aggiorna le credenziali' }}
-                    </x-filament::link>
+                    @if ($account->type === AccountType::Google)
+                        <x-filament::link :href="route('oauth.google.redirect', $account)">Riconnetti</x-filament::link>
+                    @else
+                        <x-filament::link :href="AccountResource::getUrl('edit', ['record' => $account])">Aggiorna le credenziali</x-filament::link>
+                    @endif
                 </x-slot>
             </x-filament::callout>
         @endforeach

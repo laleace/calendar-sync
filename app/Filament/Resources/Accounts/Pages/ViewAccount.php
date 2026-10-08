@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Accounts\Pages;
 
+use App\Filament\Actions\ConnectGoogleAction;
 use App\Filament\Actions\DeleteAccountAction;
 use App\Filament\Actions\DiscoverCalendarsAction;
 use App\Filament\Actions\TestConnectionAction;
@@ -16,6 +17,7 @@ class ViewAccount extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            ConnectGoogleAction::make(),
             TestConnectionAction::make(),
             DiscoverCalendarsAction::make(),
             EditAction::make(),

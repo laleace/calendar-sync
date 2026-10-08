@@ -27,10 +27,13 @@ it('shows a banner on every page for accounts with rejected credentials', functi
     }
 });
 
-it('offers a reconnect link for expired tokens', function () {
-    Account::factory()->google()->create(['name' => 'Google lavoro', 'status' => AccountStatus::TokenExpired]);
+it('links expired Google accounts straight to the reconnection', function () {
+    $account = Account::factory()->google()->create(['name' => 'Google lavoro', 'status' => AccountStatus::TokenExpired]);
 
-    $this->get('/admin')->assertSee('Account “Google lavoro”: Token scaduto')->assertSee('Riconnetti');
+    $this->get('/admin')
+        ->assertSee('Account “Google lavoro”: Token scaduto')
+        ->assertSee('Riconnetti')
+        ->assertSee(route('oauth.google.redirect', $account));
 });
 
 it('shows no banner when every account is fine', function () {

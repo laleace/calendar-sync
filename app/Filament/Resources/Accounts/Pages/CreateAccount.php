@@ -17,20 +17,27 @@ class CreateAccount extends CreateRecord
     {
         $type = $data['type'] instanceof AccountType ? $data['type'] : AccountType::from($data['type']);
 
-        return [
-            'name' => $data['name'],
-            'type' => $type,
-            'base_url' => $type === AccountType::IcloudCaldav ? config('calsync.icloud.base_url') : $data['base_url'],
-            'credentials' => ['username' => $data['username'], 'password' => $data['password']],
-        ];
+        return match ($type) {
+            // Tokens arrive with the OAuth callback.
+            AccountType::Google => ['name' => $data['name'], 'type' => $type, 'base_url' => null, 'credentials' => []],
+            default => [
+                'name' => $data['name'],
+                'type' => $type,
+                'base_url' => $type === AccountType::IcloudCaldav ? config('calsync.icloud.base_url') : $data['base_url'],
+                'credentials' => ['username' => $data['username'], 'password' => $data['password']],
+            ],
+        };
     }
 
     /**
-     * Run the discovery right away: it verifies the credentials and lists the calendars.
+     * CalDAV: run the discovery right away, it verifies the credentials and lists the
+     * calendars. Google: nothing to check before the OAuth consent.
      */
     protected function afterCreate(): void
     {
-        DiscoverCalendarsAction::discover($this->getRecord(), app(AccountService::class));
+        if ($this->getRecord()->type->isCalDav()) {
+            DiscoverCalendarsAction::discover($this->getRecord(), app(AccountService::class));
+        }
     }
 
     protected function getCreatedNotification(): ?Notification
@@ -40,6 +47,8 @@ class CreateAccount extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        return $this->getResource()::getUrl('view', ['record' => $this->getRecord()]);
+        return $this->getRecord()->type === AccountType::Google
+            ? route('oauth.google.redirect', $this->getRecord())
+            : $this->getResource()::getUrl('view', ['record' => $this->getRecord()]);
     }
 }

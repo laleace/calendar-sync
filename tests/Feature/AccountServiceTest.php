@@ -12,7 +12,6 @@ use App\Enums\AccountStatus;
 use App\Models\Account;
 use App\Models\Calendar;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Http;
 use Tests\Support\FakeCalDav;
 
 it('stores discovered calendars and the discovery endpoints', function () {
@@ -92,14 +91,13 @@ it('records the connection test result', function () {
         ->and($account->fresh()->status)->toBe(AccountStatus::Ok);
 });
 
-it('reports account types without a provider', function () {
+it('reports a Google account when OAuth is not configured', function () {
     $account = Account::factory()->google()->create();
 
     $result = app(AccountService::class)->testConnection($account);
 
     expect($result->status)->toBe(AccountStatus::Error)
-        ->and($account->fresh()->status_message)->toContain('Google');
-    Http::assertNothingSent();
+        ->and($account->fresh()->status_message)->toContain('GOOGLE_CLIENT_ID');
 });
 
 it('never stores secrets in the status message', function () {

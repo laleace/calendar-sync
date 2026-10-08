@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4.
+> Stato: **approvato il 2026-10-07.** Step completati: 0, 1, 2, 3, 4, 5.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -404,3 +404,18 @@ Idempotenza:
   - Il tipo Google non compare ancora tra le opzioni: arriva con l'OAuth allo step 5. Il banner gestisce già lo stato `token_expired`, con il link "Riconnetti".
   - Pagina "Anteprima eventi": stessa lettura che userà il SyncEngine. Range massimo di 90 giorni, ricerca, paginazione fatta a mano (Filament non pagina da solo i dati da array).
   - Verifica visiva fatta nel browser integrato, con un SQLite temporaneo e un finto server CalDAV locale.
+- **Step 5.**
+  - La scrittura è un'interfaccia separata, `WritableCalendarProvider`. Google la implementa già; CalDAV la implementerà allo step 6, insieme al SyncEngine. `ProviderRegistry::writerFor()` restituisce il provider in scrittura e solleva un'eccezione se il tipo di account non la supporta.
+  - OAuth: authorization code con PKCE, `state` monouso in sessione verificato con `hash_equals`, `prompt=consent` e `access_type=offline`. In più:
+    - si controlla che l'utente abbia lasciato spuntato il permesso del calendario (consenso granulare);
+    - si controlla la presenza del refresh token;
+    - una riconnessione verso un'email Google diversa da quella già collegata viene rifiutata.
+  - Il flusso parte solo se il pannello è aperto sullo stesso host del redirect URI. Altrimenti il cookie di sessione andrebbe perso al ritorno, per esempio tra `127.0.0.1` e `localhost`.
+  - Il rinnovo dell'access token avviene prima di ogni uso, con 60 secondi di margine, e il nuovo token viene salvato subito: è l'unica scrittura sul DB sotto il livello dei servizi. Un `invalid_grant` porta l'account a `token_expired`.
+  - Copie su Google:
+    - id deterministico, `sha256("calsync:{job}:{source_key}")`;
+    - in caso di 409 (id già usato, anche da un evento cancellato) la copia viene ripresa solo se porta il marker dello stesso job;
+    - `sendUpdates=none`, nessun partecipante, `reminders.useDefault=false`, marker in `extendedProperties.private`.
+  - Lettura da Google: le voci "working location" e le istanze cancellate vengono scartate. `EventDto::$declined` segnala gli inviti rifiutati, grazie a `maxAttendees=1` che fa restituire solo il partecipante proprietario dell'account.
+  - `google/apiclient` mantiene solo il servizio Calendar. Retry automatico su errori 5xx e rate limit (3 tentativi; 0 nei test).
+  - Guida per la console: [docs/google-oauth.md](google-oauth.md).

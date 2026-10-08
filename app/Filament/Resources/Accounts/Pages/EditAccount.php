@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Accounts\Pages;
 
 use App\CalSync\AccountService;
 use App\Enums\AccountType;
+use App\Filament\Actions\ConnectGoogleAction;
 use App\Filament\Actions\DeleteAccountAction;
 use App\Filament\Resources\Accounts\AccountResource;
 use App\Models\Account;
@@ -23,6 +24,7 @@ class EditAccount extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            ConnectGoogleAction::make(),
             ViewAction::make(),
             DeleteAccountAction::make(),
         ];
@@ -38,6 +40,11 @@ class EditAccount extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        // Google: credentials come only from the OAuth flow.
+        if ($this->record->type === AccountType::Google) {
+            return ['name' => $data['name']];
+        }
+
         $credentials = $this->record->credentials ?? [];
         $credentials['username'] = $data['username'];
 

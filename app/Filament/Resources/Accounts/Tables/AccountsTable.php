@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Accounts\Tables;
 
+use App\Filament\Actions\ConnectGoogleAction;
 use App\Filament\Actions\DiscoverCalendarsAction;
 use App\Filament\Actions\TestConnectionAction;
 use App\Models\Account;
@@ -46,6 +47,7 @@ class AccountsTable
             ->defaultSort('name')
             ->recordActions([
                 ActionGroup::make([
+                    ConnectGoogleAction::make(),
                     TestConnectionAction::make(),
                     DiscoverCalendarsAction::make(),
                     ViewAction::make(),
@@ -53,6 +55,6 @@ class AccountsTable
                 ]),
             ])
             ->emptyStateHeading('Nessun account')
-            ->emptyStateDescription('Aggiungi un account iCloud o CalDAV per iniziare.');
+            ->emptyStateDescription('Aggiungi un account iCloud, CalDAV o Google per iniziare.');
     }
 }
