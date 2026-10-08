@@ -16,8 +16,7 @@ Servono una sola volta. Alla fine avrai tre valori da mettere nel `.env`: `GOOGL
 2. **Informazioni app**: nome `Calendar Sync` ed email di assistenza (la tua).
 3. **Pubblico**: **Esterno**.
 4. **Dati di contatto**: la tua email. Accetta le norme e premi **Crea**.
-5. Vai su **Accesso ai dati → Aggiungi o rimuovi ambiti**. Cerca e seleziona `https://www.googleapis.com/auth/calendar` (Google Calendar API, "See, edit, share, and permanently delete all the calendars…"), poi salva.
-   È l'unico ambito che serve: calendar-sync non chiede né email né profilo.
+5. **Accesso ai dati (ambiti): puoi saltarlo.** L'elenco degli ambiti dichiarati serve a Google solo per la verifica dell'app. calendar-sync chiede comunque l'unico ambito che gli serve, `https://www.googleapis.com/auth/calendar`, al momento del collegamento, e Google lo mostra nella schermata di consenso. Se lo aggiungi, Google segnala che un ambito "sensibile" richiede la verifica: è un avviso, non un blocco (vedi la sezione 5).
 
 ## 3. Client OAuth
 
@@ -54,7 +53,13 @@ Per uso personale conviene pubblicarla:
    Nessuno di questi indirizzi deve per forza essere raggiungibile da Internet, e l'app Laravel non va esposta per questo (vedi la sezione "Esposizione in rete").
 
 2. Vai su **Pubblico** e premi **Pubblica app**, poi conferma. Lo stato diventa **In produzione**.
-3. Non serve la verifica di Google: è richiesta solo per superare i 100 utenti. Con l'app non verificata, al momento del consenso Google mostra l'avviso "Google non ha verificato questa app". Premi **Avanzate → Vai a Calendar Sync (non sicura)**: l'app è la tua.
+3. Ignora le richieste di verifica (pulsanti tipo "Prepara per la verifica" o "Invia per la verifica"). Un'app in produzione non verificata che usa un ambito sensibile funziona lo stesso, con due limiti che per uso personale non contano:
+   - al momento del consenso Google mostra l'avviso "Google non ha verificato questa app": premi **Avanzate → Vai a Calendar Sync (non sicura)**, l'app è la tua;
+   - massimo 100 utenti.
+
+   La verifica serve solo a togliere l'avviso, e per l'accesso al calendario richiede una revisione completa (video dimostrativo e altro). Non ne vale la pena.
+
+   Se la console non ti lascia pubblicare senza verifica: con un dominio su Google Workspace puoi scegliere il pubblico **Interno**, che non richiede verifica e non fa scadere i token, ma funziona solo per gli account di quel Workspace. Altrimenti resta in **Testing** e riconnetti ogni 7 giorni.
 
 Se preferisci restare in **Testing**, aggiungi i tuoi account Google in **Pubblico → Utenti di test** e metti in conto di dover riconnettere ogni 7 giorni.
 
