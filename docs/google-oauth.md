@@ -45,8 +45,20 @@ Finché l'app resta in stato **Testing**, Google fa scadere i refresh token dopo
 
 Per uso personale conviene pubblicarla:
 
-1. Vai su **Pubblico** e premi **Pubblica app**, poi conferma. Lo stato diventa **In produzione**.
-2. Non serve la verifica di Google: è richiesta solo per superare i 100 utenti. Con l'app non verificata, al momento del consenso Google mostra l'avviso "Google non ha verificato questa app". Premi **Avanzate → Vai a Calendar Sync (non sicura)**: l'app è la tua.
+1. In **Branding** Google può chiedere i link dell'app. Sono informazioni mostrate nella schermata di consenso, che vedi solo tu. Google li esamina soltanto se chiedi la verifica dell'app, che qui non serve. Compila così:
+   - **Home page dell'applicazione**: `https://calsync.<tuo-dominio>` (oppure la home del tuo dominio, se ne hai una);
+   - **Link alle norme sulla privacy**: una pagina sul tuo dominio, per esempio `https://<tuo-dominio>/privacy`. Basta un testo breve, come quello sotto;
+   - **Termini di servizio**: facoltativo, lascia vuoto;
+   - **Domini autorizzati**: `<tuo-dominio>`. È obbligatorio per usare il redirect URI di produzione, e i domini dei link sopra devono rientrare qui.
+
+   Nessuno di questi indirizzi deve per forza essere raggiungibile da Internet, e l'app Laravel non va esposta per questo (vedi la sezione "Esposizione in rete").
+
+   Testo minimo per la pagina privacy:
+
+   > Calendar Sync è un'applicazione personale, usata solo dal proprietario del dominio. Accede a Google Calendar esclusivamente per sincronizzare i calendari del proprietario. I dati non vengono condivisi con terzi né usati per altri scopi. I token di accesso sono conservati cifrati e si possono revocare in qualsiasi momento da https://myaccount.google.com/permissions.
+
+2. Vai su **Pubblico** e premi **Pubblica app**, poi conferma. Lo stato diventa **In produzione**.
+3. Non serve la verifica di Google: è richiesta solo per superare i 100 utenti. Con l'app non verificata, al momento del consenso Google mostra l'avviso "Google non ha verificato questa app". Premi **Avanzate → Vai a Calendar Sync (non sicura)**: l'app è la tua.
 
 Se preferisci restare in **Testing**, aggiungi i tuoi account Google in **Pubblico → Utenti di test** e metti in conto di dover riconnettere ogni 7 giorni.
 
@@ -57,7 +69,20 @@ Anche in produzione un refresh token può smettere di funzionare in questi casi:
 
 In tutti questi casi il pannello mostra "Token scaduto" e il pulsante "Riconnetti".
 
-## 6. Collegare un account
+## 6. Esposizione in rete: non serve
+
+Google non contatta mai il server di calendar-sync:
+- il ritorno dal consenso (redirect URI) è un redirect eseguito dal **tuo browser**;
+- lo scambio del codice e le chiamate alle API sono connessioni **in uscita** dal server verso Google.
+
+Per il redirect URI di produzione Google chiede solo un indirizzo HTTPS su un dominio pubblico, cioè con un dominio vero, non `.lan` né un IP. L'indirizzo non deve essere raggiungibile da Internet. Due configurazioni possibili, dettagliate allo step 9:
+
+- **Solo LAN.** Un record DNS su Cloudflare `calsync.<tuo-dominio>` punta all'IP privato del container, in modalità "DNS only" (nuvola grigia). Il certificato Let's Encrypt si ottiene con la challenge DNS-01 tramite le API di Cloudflare. Da Internet l'indirizzo non porta da nessuna parte.
+- **Cloudflare Tunnel + Cloudflare Access.** Utile se vuoi usare il pannello anche fuori casa. Access chiede un login (per esempio un codice alla tua email) prima ancora di arrivare a Laravel.
+
+In entrambi i casi n8n chiama l'API sulla rete interna.
+
+## 7. Collegare un account
 
 1. Nel pannello vai su **Account → Nuovo**, scegli **Google** e dai un nome all'account. Premi **Salva**.
 2. Vieni portato su Google. Scegli l'account del calendario e concedi l'accesso al calendario: se Google mostra le caselle dei permessi, lascia spuntata quella del calendario.
