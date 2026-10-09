@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'name', 'enabled', 'target_calendar_id', 'direction', 'range_past_days', 'range_future_days',
+    'name', 'group_id', 'enabled', 'target_calendar_id', 'direction', 'range_past_days', 'range_future_days',
     'interval_minutes', 'privacy_mode', 'busy_title', 'title_prefix', 'allow_duplicates',
     'skip_existing_in_target', 'filters', 'next_run_at', 'last_run_at',
 ])]
@@ -56,6 +56,14 @@ class SyncJob extends Model
             'next_run_at' => 'datetime',
             'last_run_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Group, $this>
+     */
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class);
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Accounts\Schemas;
 use App\CalSync\Google\GoogleClientFactory;
 use App\Enums\AccountType;
 use App\Filament\Resources\Accounts\AccountResource;
+use App\Filament\Support\GroupFields;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
@@ -52,6 +53,8 @@ class AccountForm
                             ->placeholder('es. iCloud personale')
                             ->required()
                             ->maxLength(100),
+
+                        GroupFields::select(),
 
                         TextInput::make('base_url')
                             ->label('URL del server CalDAV')

@@ -21,6 +21,11 @@ class AccountInfolist
                         TextEntry::make('type')
                             ->label('Tipo')
                             ->badge(),
+                        TextEntry::make('group.name')
+                            ->label('Gruppo')
+                            ->badge()
+                            ->color('gray')
+                            ->placeholder('Nessun gruppo'),
                         TextEntry::make('username')
                             ->label('Utente')
                             ->state(fn (Account $record): ?string => $record->hasUnreadableCredentials()

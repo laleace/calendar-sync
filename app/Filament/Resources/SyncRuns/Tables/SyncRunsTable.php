@@ -4,6 +4,7 @@ namespace App\Filament\Resources\SyncRuns\Tables;
 
 use App\Enums\SyncRunStatus;
 use App\Filament\Resources\SyncRuns\SyncRunResource;
+use App\Filament\Support\GroupFields;
 use App\Models\SyncRun;
 use Filament\Actions\Action;
 use Filament\Support\Icons\Heroicon;
@@ -60,6 +61,8 @@ class SyncRunsTable
                 SelectFilter::make('status')
                     ->label('Stato')
                     ->options(SyncRunStatus::class),
+                GroupFields::filter(through: 'syncJob')
+                    ->visible($showJob),
                 SelectFilter::make('sync_job_id')
                     ->label('Job')
                     ->relationship('syncJob', 'name')

@@ -5,8 +5,10 @@ namespace App\Filament\Resources\Accounts\Tables;
 use App\Filament\Actions\ConnectGoogleAction;
 use App\Filament\Actions\DiscoverCalendarsAction;
 use App\Filament\Actions\TestConnectionAction;
+use App\Filament\Support\GroupFields;
 use App\Models\Account;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -17,12 +19,13 @@ class AccountsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->withCount('calendars'))
+            ->modifyQueryUsing(fn ($query) => $query->with('group')->withCount('calendars'))
             ->columns([
                 TextColumn::make('name')
                     ->label('Nome')
                     ->searchable()
                     ->sortable(),
+                GroupFields::column(),
                 TextColumn::make('type')
                     ->label('Tipo')
                     ->badge(),
@@ -51,6 +54,10 @@ class AccountsTable
                     ->sortable(),
             ])
             ->defaultSort('name')
+            ->filters([
+                GroupFields::filter(),
+            ])
+            ->persistFiltersInSession()
             ->recordActions([
                 ActionGroup::make([
                     ConnectGoogleAction::make(),
@@ -58,6 +65,11 @@ class AccountsTable
                     DiscoverCalendarsAction::make(),
                     ViewAction::make(),
                     EditAction::make(),
+                ]),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    GroupFields::bulkAction(),
                 ]),
             ])
             ->emptyStateHeading('Nessun account')

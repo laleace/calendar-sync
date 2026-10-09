@@ -12,9 +12,10 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'type', 'base_url', 'credentials', 'principal_url', 'calendar_home_url', 'status', 'status_message', 'last_checked_at'])]
+#[Fillable(['name', 'group_id', 'type', 'base_url', 'credentials', 'principal_url', 'calendar_home_url', 'status', 'status_message', 'last_checked_at'])]
 #[Hidden(['credentials'])]
 class Account extends Model
 {
@@ -39,6 +40,14 @@ class Account extends Model
             'credentials' => 'encrypted:array',
             'last_checked_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Group, $this>
+     */
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class);
     }
 
     /**

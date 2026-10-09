@@ -68,17 +68,21 @@ class Calendar extends Model
     }
 
     /**
-     * Select options grouped by account. Calendars sharing a name within an account
-     * (common with shared Google calendars) get their timezone and id appended.
+     * Select options grouped by account, prefixed by its group. Calendars sharing a name
+     * within an account (common with shared Google calendars) get their timezone and id
+     * appended.
      *
-     * @param  Collection<int, Calendar>  $calendars  With the account relation loaded.
+     * @param  Collection<int, Calendar>  $calendars  With the account (and its group) loaded.
      * @return array<string, array<int, string>>
      */
     public static function groupedOptions(Collection $calendars): array
     {
         return $calendars
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
-            ->groupBy(fn (Calendar $calendar) => $calendar->account->name)
+            // "Personale · iCloud": accounts of the same group stay together.
+            ->groupBy(fn (Calendar $calendar) => $calendar->account->group
+                ? "{$calendar->account->group->name} · {$calendar->account->name}"
+                : $calendar->account->name)
             ->sortKeys()
             ->map(function (Collection $group) {
                 $duplicates = $group->countBy('name')->filter(fn (int $count) => $count > 1);

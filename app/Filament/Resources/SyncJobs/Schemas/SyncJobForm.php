@@ -6,6 +6,7 @@ use App\CalSync\Sync\FilterRule;
 use App\Enums\FilterField;
 use App\Enums\PrivacyMode;
 use App\Enums\TextOperator;
+use App\Filament\Support\GroupFields;
 use App\Models\Calendar;
 use App\Models\SyncJob;
 use BackedEnum;
@@ -18,6 +19,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class SyncJobForm
@@ -46,17 +48,20 @@ class SyncJobForm
                         Select::make('source_ids')
                             ->label('Calendari sorgente')
                             ->multiple()
-                            ->options(fn (): array => Calendar::groupedOptions(Calendar::with('account')->whereNull('missing_since')->get()))
+                            ->options(fn (): array => Calendar::groupedOptions(Calendar::with('account.group')->whereNull('missing_since')->get()))
                             ->required()
                             ->live()
+                            ->afterStateUpdated(fn (Get $get, Set $set) => self::suggestGroup($get, $set))
                             ->helperText('Se lo stesso evento è in più sorgenti, vince il primo calendario selezionato.'),
 
                         Select::make('target_calendar_id')
                             ->label('Calendario di destinazione')
                             ->options(fn (Get $get): array => Calendar::groupedOptions(
-                                Calendar::with('account')->writable()->whereNotIn('id', $get('source_ids') ?? [])->get(),
+                                Calendar::with('account.group')->writable()->whereNotIn('id', $get('source_ids') ?? [])->get(),
                             ))
                             ->required()
+                            ->live()
+                            ->afterStateUpdated(fn (Get $get, Set $set) => self::suggestGroup($get, $set))
                             ->rules([
                                 fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
                                     if (in_array((int) $value, array_map('intval', $get('source_ids') ?? []), true)) {
@@ -76,12 +81,8 @@ class SyncJobForm
                             ->required()
                             ->maxLength(100),
 
-                        Select::make('interval_minutes')
-                            ->label('Frequenza')
-                            ->options(self::INTERVALS)
-                            ->default(15)
-                            ->selectablePlaceholder(false)
-                            ->required(),
+                        GroupFields::select()
+                            ->helperText('Serve solo a organizzare il pannello. Se è vuoto e tutti i calendari scelti sono di account dello stesso gruppo, viene proposto quello.'),
 
                         TextInput::make('range_past_days')
                             ->label('Giorni nel passato')
@@ -103,11 +104,18 @@ class SyncJobForm
                             ->suffix('giorni')
                             ->required(),
 
+                        Select::make('interval_minutes')
+                            ->label('Frequenza')
+                            ->options(self::INTERVALS)
+                            ->default(15)
+                            ->selectablePlaceholder(false)
+                            ->required(),
+
                         Toggle::make('enabled')
                             ->label('Attivo')
                             ->helperText('Se attivo, il job viene eseguito automaticamente con la frequenza indicata.')
                             ->default(false)
-                            ->columnSpanFull(),
+                            ->inline(false),
                     ]),
 
                 Section::make('Contenuto delle copie')
@@ -173,6 +181,27 @@ class SyncJobForm
                             ->helperText('Non copia un evento se la destinazione contiene già un evento con lo stesso UID, per esempio l\'invito originale.'),
                     ]),
             ]);
+    }
+
+    /**
+     * Fills an empty group when the sources and the target all belong to accounts of the
+     * same group.
+     */
+    private static function suggestGroup(Get $get, Set $set): void
+    {
+        if (filled($get('group_id')) || blank($get('source_ids')) || blank($get('target_calendar_id'))) {
+            return;
+        }
+
+        $groups = Calendar::with('account')
+            ->whereIn('id', [...$get('source_ids'), $get('target_calendar_id')])
+            ->get()
+            ->map(fn (Calendar $calendar) => $calendar->account->group_id)
+            ->unique();
+
+        if ($groups->count() === 1 && $groups->first() !== null) {
+            $set('group_id', $groups->first());
+        }
     }
 
     private static function rules(string $name, string $label): Repeater

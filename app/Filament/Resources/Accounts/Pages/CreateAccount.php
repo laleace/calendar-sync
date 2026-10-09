@@ -16,13 +16,13 @@ class CreateAccount extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $type = $data['type'] instanceof AccountType ? $data['type'] : AccountType::from($data['type']);
+        $common = ['name' => $data['name'], 'group_id' => $data['group_id'] ?? null, 'type' => $type];
 
         return match ($type) {
             // Tokens arrive with the OAuth callback.
-            AccountType::Google => ['name' => $data['name'], 'type' => $type, 'base_url' => null, 'credentials' => []],
+            AccountType::Google => [...$common, 'base_url' => null, 'credentials' => []],
             default => [
-                'name' => $data['name'],
-                'type' => $type,
+                ...$common,
                 'base_url' => $type === AccountType::IcloudCaldav ? config('calsync.icloud.base_url') : $data['base_url'],
                 'credentials' => ['username' => $data['username'], 'password' => $data['password']],
             ],

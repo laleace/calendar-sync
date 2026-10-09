@@ -43,7 +43,7 @@ class EditAccount extends EditRecord
     {
         // Google: credentials come only from the OAuth flow.
         if ($this->record->type === AccountType::Google) {
-            return ['name' => $data['name']];
+            return ['name' => $data['name'], 'group_id' => $data['group_id'] ?? null];
         }
 
         if ($this->record->hasUnreadableCredentials() && blank($data['password'] ?? null)) {
@@ -64,7 +64,7 @@ class EditAccount extends EditRecord
 
         $this->connectionChanged = $credentials !== $stored || $baseUrl !== $this->record->base_url;
 
-        return ['name' => $data['name'], 'base_url' => $baseUrl, 'credentials' => $credentials];
+        return ['name' => $data['name'], 'group_id' => $data['group_id'] ?? null, 'base_url' => $baseUrl, 'credentials' => $credentials];
     }
 
     protected function afterSave(): void

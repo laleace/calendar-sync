@@ -208,7 +208,7 @@ class CalendarPreview extends Page implements HasTable
      */
     private static function calendarOptions(): array
     {
-        return Calendar::groupedOptions(Calendar::with('account')->whereNull('missing_since')->get());
+        return Calendar::groupedOptions(Calendar::with('account.group')->whereNull('missing_since')->get());
     }
 
     /**

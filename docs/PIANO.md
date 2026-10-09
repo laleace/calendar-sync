@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9 e 10; lo step 8 è stato eliminato).
+> Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9, 10 e 11; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
@@ -104,6 +104,7 @@ Tabella Laravel standard (`name`, `email`, `password`, `remember_token`). Contie
 |---|---|---|
 | id | bigint PK | |
 | name | string(100) | Etichetta, es. "iCloud personale" |
+| group_id | FK → sync_groups null, null on delete | Step 11. Solo organizzativo |
 | type | string(20) | Enum `AccountType`: `icloud_caldav`, `caldav_generic`, `google` |
 | base_url | string(500) null | Per CalDAV generico. Per iCloud vale `https://caldav.icloud.com/` |
 | credentials | text, cast `encrypted:array` | CalDAV: `username`, `password`. Google: `access_token`, `refresh_token`, `expires_at`, `email` |
@@ -134,6 +135,7 @@ Alla discovery scarto le collezioni senza VEVENT, per esempio i Promemoria iClou
 |---|---|---|
 | id | bigint PK | |
 | name | string(100) | |
+| group_id | FK → sync_groups null, null on delete | Step 11. Solo organizzativo |
 | enabled | bool, default false | |
 | target_calendar_id | FK → calendars, restrict | |
 | direction | string(20), default `one_way` | Per ora è l'unico valore |
@@ -149,6 +151,15 @@ Alla discovery scarto le collezioni senza VEVENT, per esempio i Promemoria iClou
 | next_run_at | timestamp null, indice | Usato dallo scheduler |
 | last_run_at | timestamp null | |
 | timestamps | | |
+
+### sync_groups (step 11)
+| Colonna | Tipo | Note |
+|---|---|---|
+| id | bigint PK | |
+| name | string(50), unique | Es. "Personale", "Utente X". Unicità senza distinguere maiuscole, controllata dal form |
+| timestamps | | |
+
+Il nome della tabella non è `groups` perché GROUPS è una parola riservata in MySQL 8.
 
 ### sync_job_sources (pivot)
 | Colonna | Tipo | Note |
@@ -341,6 +352,7 @@ Idempotenza:
 | 8 | ~~API per n8n~~: eliminato il 2026-10-08 | — |
 | 9 | `deploy/` (nginx, pool php-fpm, systemd per coda e scheduler, cron alternativo, env di esempio, script di aggiornamento) e README operativo. Configurazione solo LAN | `calsync:doctor` e checklist in `deploy/README.md` |
 | 10 | Filtri per job: regole "copia solo" ed "escludi" su titolo, luogo, note, giorno, ora di inizio, tutto il giorno, libero, provvisorio, ricorrente. Opzione per togliere il prefisso filtrato dal titolo della copia | Test unitari delle regole, test del motore e del form. Poi dry-run su un job reale |
+| 11 | Gruppi per organizzare account e job (es. "Personale", "Utente X"): pagina Gruppi, campo nei form con creazione al volo, colonna, filtro e assegnazione multipla nelle liste, filtro nello storico | Test Filament. Poi assegni i gruppi agli account e ai job esistenti |
 
 ## 7. Decisioni dalle risposte (2026-10-07)
 
@@ -359,6 +371,7 @@ Idempotenza:
 5. **Progetto nella root del repo**, git locale con un commit per step. Il push verso Gitea lo gestisci tu.
 6. **Niente API per n8n** (decisione del 2026-10-08). Lo scopo dell'app è solo sincronizzare e aggregare calendari. Rimossi Sanctum, `routes/api.php` e il trigger `api` dei run. La migration `drop_personal_access_tokens_table` elimina la tabella dai database già migrati.
 7. **Filtri per job** (decisione del 2026-10-09). Valgono per tutte le sorgenti del job: per filtri diversi su sorgenti diverse si creano più job verso la stessa destinazione. Con l'opzione "togli il prefisso", la copia di "[Lavoro] Riunione" si chiama "Riunione".
+8. **Gruppi** (decisione del 2026-10-09). Il pannello lo usi solo tu: i gruppi servono a tenere separate le sincronizzazioni personali da quelle fatte per altri, senza utenti né permessi separati. Si chiamano "Gruppo", non "Cliente".
 
 ## 8. Note di implementazione
 
@@ -472,3 +485,11 @@ Idempotenza:
   - "Togli il prefisso" usa solo le regole di inclusione "Titolo inizia con": vince il prefisso più lungo, si tolgono anche i separatori che seguono (`:`, `-`, `–`, `|`) e un titolo fatto solo del prefisso resta com'è. Cambiare l'opzione aggiorna le copie esistenti, perché cambia l'hash.
   - Le ore della fascia oraria non passano per la conversione di fuso del TimePicker di Filament: sono ore del giorno, non istanti.
   - Nella lista dei job la colonna "Filtri" mostra il numero di regole.
+- **Step 11.**
+  - Modello `Group` (tabella `sync_groups`) e `group_id` facoltativo su `accounts` e `sync_jobs`. Eliminando un gruppo, account e job restano senza gruppo. Il sync ignora i gruppi.
+  - `App\Filament\Support\GroupFields` raccoglie i pezzi in comune tra account e job: la select con creazione e modifica al volo, la colonna, il filtro (con "Senza gruppo") e l'azione di massa "Assegna gruppo".
+  - L'azione di massa fa un `update` diretto sul database: nessun evento dei modelli, e le credenziali cifrate restano intatte.
+  - I filtri delle liste restano salvati in sessione. I numeri nella pagina Gruppi aprono le liste già filtrate (`?filters[group][value]=…`).
+  - Nel form del job, se il gruppo è vuoto e sorgenti e destinazione appartengono tutte ad account dello stesso gruppo, il gruppo viene proposto.
+  - Nelle select dei calendari l'intestazione diventa "Gruppo · Account", così gli account dello stesso gruppo stanno vicini.
+  - Lo storico dei run si filtra per gruppo del job.

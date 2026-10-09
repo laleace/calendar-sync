@@ -5,8 +5,10 @@ namespace App\Filament\Resources\SyncJobs\Tables;
 use App\Filament\Actions\DryRunAction;
 use App\Filament\Actions\RunSyncNowAction;
 use App\Filament\Resources\SyncJobs\Schemas\SyncJobForm;
+use App\Filament\Support\GroupFields;
 use App\Models\SyncJob;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
@@ -17,12 +19,13 @@ class SyncJobsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['sources', 'target.account']))
+            ->modifyQueryUsing(fn ($query) => $query->with(['group', 'sources', 'target.account']))
             ->columns([
                 TextColumn::make('name')
                     ->label('Nome')
                     ->searchable()
                     ->sortable(),
+                GroupFields::column(),
                 TextColumn::make('sources.name')
                     ->label('Sorgenti')
                     ->badge()
@@ -61,11 +64,20 @@ class SyncJobsTable
                     ->placeholder('—'),
             ])
             ->defaultSort('name')
+            ->filters([
+                GroupFields::filter(),
+            ])
+            ->persistFiltersInSession()
             ->recordActions([
                 ActionGroup::make([
                     RunSyncNowAction::make(),
                     DryRunAction::make(),
                     EditAction::make(),
+                ]),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    GroupFields::bulkAction(),
                 ]),
             ])
             ->emptyStateHeading('Nessuna sincronizzazione')
