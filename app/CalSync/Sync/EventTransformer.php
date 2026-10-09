@@ -51,7 +51,7 @@ final class EventTransformer
     public function toTarget(SyncJob $job, EventDto $event, string $sourceKey): EventDto
     {
         $busyOnly = $job->privacy_mode === PrivacyMode::BusyOnly;
-        $title = $busyOnly ? $job->busy_title : $event->title;
+        $title = $busyOnly ? $job->busy_title : $job->eventFilters()->copyTitle($event->title);
 
         if (filled($job->title_prefix)) {
             $title = trim($job->title_prefix.' '.$title);

@@ -60,14 +60,22 @@ final class SyncEngine
         $desired = [];
         $skipped = [];
         $unreliable = [];
+        $filters = $job->eventFilters();
+        /** @var array<string, true> $filtered Keys of events left out by the job filters. */
+        $filtered = [];
 
         foreach ($job->sources as $calendar) {
             $events = $this->readSource($job, $calendar, $target, $from, $to, $mappings, $problems, $unreliable);
 
             foreach ($events as $event) {
-                $reason = $this->transformer->skipReason($job, $event)
-                    ?? (isset($foreignTargetUids[$event->uid]) ? 'già presente nel calendario di destinazione' : null);
                 $key = $this->transformer->sourceKey($job, $calendar, $event);
+                $reason = $this->transformer->skipReason($job, $event);
+
+                if ($reason === null && ($reason = $filters->rejectReason($event)) !== null) {
+                    $filtered[$key] = true;
+                }
+
+                $reason ??= isset($foreignTargetUids[$event->uid]) ? 'già presente nel calendario di destinazione' : null;
 
                 // Sources are ordered by priority: the first one wins on duplicates.
                 $reason ??= isset($desired[$key]) ? 'duplicato di un evento di '.$desired[$key]['calendar']->name : null;
@@ -118,6 +126,7 @@ final class SyncEngine
                 isset($unreliable[$mapping->source_calendar_id]) => null,
                 // Left the window (usually: it is in the past). Not ours to judge any more.
                 $mapping->starts_at < $from || $mapping->starts_at >= $to => null,
+                isset($filtered[$key]) => 'escluso dai filtri del job',
                 default => 'evento non più presente nella sorgente',
             };
 

@@ -2,11 +2,18 @@
 
 namespace App\Filament\Resources\SyncJobs\Schemas;
 
+use App\CalSync\Sync\FilterRule;
+use App\Enums\FilterField;
 use App\Enums\PrivacyMode;
+use App\Enums\TextOperator;
 use App\Models\Calendar;
+use App\Models\SyncJob;
+use BackedEnum;
 use Closure;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Section;
@@ -129,6 +136,31 @@ class SyncJobForm
                             ->maxLength(50),
                     ]),
 
+                Section::make('Filtri')
+                    ->description("Facoltativi. Valgono per tutte le sorgenti e guardano l'evento originale, prima di privacy e prefisso. Prova l'effetto con il dry-run.")
+                    ->statePath('filters')
+                    ->collapsible()
+                    ->collapsed(fn (?SyncJob $record): bool => ($record?->eventFilters()->count() ?? 0) === 0)
+                    ->schema([
+                        self::rules('include', 'Copia solo gli eventi che…')
+                            ->helperText('Se non ci sono regole vengono copiati tutti gli eventi.'),
+
+                        ToggleButtons::make('include_mode')
+                            ->label('Le regole sopra devono valere')
+                            ->options(['any' => 'Almeno una', 'all' => 'Tutte'])
+                            ->formatStateUsing(fn (?string $state): string => $state ?? 'any')
+                            ->inline()
+                            ->visible(fn (Get $get): bool => count($get('include') ?? []) > 1),
+
+                        Toggle::make('strip_prefix')
+                            ->label('Togli il prefisso dal titolo della copia')
+                            ->helperText('Per le regole «Titolo inizia con»: «[Lavoro] Riunione» diventa «Riunione».')
+                            ->visible(fn (Get $get): bool => self::hasPrefixRule($get('include') ?? [])),
+
+                        self::rules('exclude', 'Escludi gli eventi che…')
+                            ->helperText("Basta una regola per escludere l'evento, anche se rispetta quelle sopra."),
+                    ]),
+
                 Section::make('Duplicati')
                     ->collapsed()
                     ->schema([
@@ -141,6 +173,95 @@ class SyncJobForm
                             ->helperText('Non copia un evento se la destinazione contiene già un evento con lo stesso UID, per esempio l\'invito originale.'),
                     ]),
             ]);
+    }
+
+    private static function rules(string $name, string $label): Repeater
+    {
+        $field = fn (Get $get): ?FilterField => FilterField::tryFrom(self::value($get('field')));
+
+        return Repeater::make($name)
+            ->label($label)
+            ->schema([
+                Select::make('field')
+                    ->label('Campo')
+                    ->options(FilterField::class)
+                    ->required()
+                    ->live(),
+
+                Select::make('operator')
+                    ->label('Condizione')
+                    ->options(TextOperator::class)
+                    ->default(TextOperator::Contains->value)
+                    ->selectablePlaceholder(false)
+                    ->required()
+                    ->live()
+                    ->visible(fn (Get $get): bool => $field($get)?->isText() ?? false),
+
+                TextInput::make('value')
+                    ->label('Testo')
+                    ->required()
+                    ->maxLength(200)
+                    ->rules([
+                        fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                            if (self::value($get('operator')) === TextOperator::Regex->value && ! FilterRule::isValidPattern(trim((string) $value))) {
+                                $fail('Espressione regolare non valida. Scrivila senza delimitatori, per esempio ^\\[(Lavoro|Work)\\]');
+                            }
+                        },
+                    ])
+                    ->visible(fn (Get $get): bool => $field($get)?->isText() ?? false),
+
+                ToggleButtons::make('weekdays')
+                    ->label('Giorni di inizio')
+                    ->options(array_map('ucfirst', FilterRule::WEEKDAYS))
+                    ->multiple()
+                    ->inline()
+                    ->required()
+                    ->columnSpan(2)
+                    ->visible(fn (Get $get): bool => $field($get) === FilterField::Weekday),
+
+                // Times of day, not instants: same timezone as the state, so no conversion.
+                TimePicker::make('from')
+                    ->label('Dalle')
+                    ->seconds(false)
+                    ->timezone(fn (): string => config('app.timezone'))
+                    ->required()
+                    ->visible(fn (Get $get): bool => $field($get) === FilterField::StartTime),
+
+                TimePicker::make('to')
+                    ->label('Alle (escluse)')
+                    ->seconds(false)
+                    ->timezone(fn (): string => config('app.timezone'))
+                    ->required()
+                    ->rules([
+                        fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                            if (FilterRule::minuteOfDay($value) === FilterRule::minuteOfDay($get('from'))) {
+                                $fail("L'orario finale deve essere diverso da quello iniziale.");
+                            }
+                        },
+                    ])
+                    ->helperText('Se è prima di «Dalle», la fascia scavalca la mezzanotte.')
+                    ->visible(fn (Get $get): bool => $field($get) === FilterField::StartTime),
+            ])
+            ->columns(3)
+            ->defaultItems(0)
+            ->reorderable(false)
+            ->addActionLabel('Aggiungi regola')
+            ->itemLabel(fn (array $state): ?string => FilterRule::fromArray($state)?->describe());
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $rules
+     */
+    private static function hasPrefixRule(array $rules): bool
+    {
+        return collect($rules)->contains(fn ($rule): bool => is_array($rule)
+            && self::value($rule['field'] ?? null) === FilterField::Title->value
+            && self::value($rule['operator'] ?? null) === TextOperator::StartsWith->value);
+    }
+
+    private static function value(mixed $state): string
+    {
+        return $state instanceof BackedEnum ? (string) $state->value : (string) $state;
     }
 
     private static function privacy(Get $get): ?PrivacyMode

@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\FilterField;
 use App\Enums\PrivacyMode;
 use App\Enums\SyncRunStatus;
+use App\Enums\TextOperator;
 use App\Filament\Resources\SyncJobs\Pages\CreateSyncJob;
 use App\Filament\Resources\SyncJobs\Pages\DryRunSyncJob;
 use App\Filament\Resources\SyncJobs\Pages\EditSyncJob;
@@ -14,6 +16,7 @@ use App\Models\SyncRun;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Repeater;
 use Livewire\Livewire;
 use Tests\Support\InMemoryCalendarProvider as Fake;
 
@@ -83,6 +86,109 @@ it('validates the job form', function (Closure $data, array $errors) {
     'read-only target' => [fn ($t) => ['source_ids' => [$t->home->id], 'target_calendar_id' => $t->holidays->id], ['target_calendar_id']],
     'range too long' => [fn ($t) => ['source_ids' => [$t->home->id], 'target_calendar_id' => $t->target->id, 'range_future_days' => 1000], ['range_future_days']],
 ]);
+
+it('saves the job filters', function () {
+    $undoRepeaterFake = Repeater::fake();
+
+    Livewire::test(CreateSyncJob::class)
+        ->fillForm([
+            'name' => 'Solo lavoro',
+            'source_ids' => [$this->home->id],
+            'target_calendar_id' => $this->target->id,
+            'filters' => [
+                'include' => [
+                    ['field' => 'title', 'operator' => 'starts_with', 'value' => '[Lavoro]'],
+                    ['field' => 'weekday', 'weekdays' => [1, 2, 3, 4, 5]],
+                ],
+                'include_mode' => 'all',
+                'strip_prefix' => true,
+                'exclude' => [
+                    ['field' => 'start_time', 'from' => '22:00', 'to' => '06:00'],
+                    ['field' => 'free'],
+                ],
+            ],
+        ])
+        ->assertFormFieldVisible('filters.include_mode')
+        ->assertFormFieldVisible('filters.strip_prefix')
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $undoRepeaterFake();
+    $job = SyncJob::sole();
+    $filters = $job->eventFilters();
+
+    // Only the inputs shown for each rule are stored.
+    expect($job->filters['include'][0])->toBe(['field' => 'title', 'operator' => 'starts_with', 'value' => '[Lavoro]'])
+        ->and($filters->matchAll)->toBeTrue()
+        ->and($filters->stripPrefix)->toBeTrue()
+        ->and(array_map(fn ($rule) => $rule->describe(), $filters->include))->toBe(['Titolo inizia con «[Lavoro]»', 'Giorno: lun, mar, mer, gio, ven'])
+        ->and(array_map(fn ($rule) => $rule->describe(), $filters->exclude))->toBe(['Inizia tra 22:00 e 06:00', 'Segnato come libero']);
+});
+
+it('validates the filter rules', function (array $rule, string $field) {
+    $undoRepeaterFake = Repeater::fake();
+
+    Livewire::test(CreateSyncJob::class)
+        ->fillForm([
+            'name' => 'Job',
+            'source_ids' => [$this->home->id],
+            'target_calendar_id' => $this->target->id,
+            'filters' => ['exclude' => [$rule]],
+        ])
+        ->call('create')
+        ->assertHasFormErrors(["filters.exclude.0.{$field}"]);
+
+    $undoRepeaterFake();
+
+    expect(SyncJob::count())->toBe(0);
+})->with([
+    'no field' => [['field' => null], 'field'],
+    'empty text' => [['field' => 'location', 'operator' => 'contains', 'value' => ''], 'value'],
+    'invalid regex' => [['field' => 'title', 'operator' => 'regex', 'value' => '(unclosed'], 'value'],
+    'no weekday' => [['field' => 'weekday', 'weekdays' => []], 'weekdays'],
+    'empty time range' => [['field' => 'start_time', 'from' => '09:00', 'to' => '09:00'], 'to'],
+]);
+
+it('offers to strip the prefix only with a "starts with" title rule', function () {
+    $undoRepeaterFake = Repeater::fake();
+
+    Livewire::test(CreateSyncJob::class)
+        ->assertFormFieldHidden('filters.strip_prefix')
+        ->assertFormFieldHidden('filters.include_mode')
+        ->fillForm(['filters' => ['include' => [['field' => 'title', 'operator' => 'contains', 'value' => 'x']]]])
+        ->assertFormFieldHidden('filters.strip_prefix')
+        ->fillForm(['filters' => ['include' => [['field' => 'title', 'operator' => 'starts_with', 'value' => 'x']]]])
+        ->assertFormFieldVisible('filters.strip_prefix');
+
+    $undoRepeaterFake();
+});
+
+it('edits the filters and counts them in the list', function () {
+    $job = SyncJob::factory()->create(['target_calendar_id' => $this->target->id, 'filters' => [
+        'include' => [['field' => 'title', 'operator' => 'contains', 'value' => 'Lavoro']],
+        'exclude' => [['field' => 'all_day']],
+    ]]);
+    $job->syncSources([$this->home->id]);
+
+    Livewire::test(ListSyncJobs::class)->assertSee('2 regole');
+
+    $undoRepeaterFake = Repeater::fake();
+
+    Livewire::test(EditSyncJob::class, ['record' => $job->id])
+        ->assertFormSet([
+            'filters.include.0.field' => FilterField::Title,
+            'filters.include.0.operator' => TextOperator::Contains,
+            'filters.include.0.value' => 'Lavoro',
+            'filters.exclude.0.field' => FilterField::AllDay,
+        ])
+        ->fillForm(['filters' => ['include' => [['field' => 'title', 'operator' => 'contains', 'value' => 'Lavoro']], 'exclude' => []]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $undoRepeaterFake();
+
+    expect($job->fresh()->eventFilters()->count())->toBe(1);
+});
 
 it('only asks for the busy title in busy-only mode', function () {
     Livewire::test(CreateSyncJob::class)

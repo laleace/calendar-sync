@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\CalSync\Sync\EventFilters;
 use App\Enums\PrivacyMode;
 use App\Enums\SyncDirection;
 use Carbon\CarbonImmutable;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'name', 'enabled', 'target_calendar_id', 'direction', 'range_past_days', 'range_future_days',
     'interval_minutes', 'privacy_mode', 'busy_title', 'title_prefix', 'allow_duplicates',
-    'skip_existing_in_target', 'next_run_at', 'last_run_at',
+    'skip_existing_in_target', 'filters', 'next_run_at', 'last_run_at',
 ])]
 class SyncJob extends Model
 {
@@ -51,6 +52,7 @@ class SyncJob extends Model
             'privacy_mode' => PrivacyMode::class,
             'allow_duplicates' => 'boolean',
             'skip_existing_in_target' => 'boolean',
+            'filters' => 'array',
             'next_run_at' => 'datetime',
             'last_run_at' => 'datetime',
         ];
@@ -91,6 +93,14 @@ class SyncJob extends Model
     public function runs(): HasMany
     {
         return $this->hasMany(SyncRun::class);
+    }
+
+    /**
+     * The include/exclude rules applied to the source events.
+     */
+    public function eventFilters(): EventFilters
+    {
+        return EventFilters::fromArray($this->filters);
     }
 
     /**

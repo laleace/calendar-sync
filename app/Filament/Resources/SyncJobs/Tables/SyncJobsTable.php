@@ -33,6 +33,16 @@ class SyncJobsTable
                 TextColumn::make('privacy_mode')
                     ->label('Privacy')
                     ->badge(),
+                TextColumn::make('filters')
+                    ->label('Filtri')
+                    ->state(fn (SyncJob $record): ?string => match ($count = $record->eventFilters()->count()) {
+                        0 => null,
+                        1 => '1 regola',
+                        default => "{$count} regole",
+                    })
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—'),
                 TextColumn::make('interval_minutes')
                     ->label('Frequenza')
                     ->formatStateUsing(fn (int $state): string => SyncJobForm::INTERVALS[$state] ?? "Ogni {$state} minuti"),

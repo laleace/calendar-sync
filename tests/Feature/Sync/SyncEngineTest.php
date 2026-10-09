@@ -494,3 +494,100 @@ it('fails when existing target events must be skipped but the target cannot be r
         ->and($run->message)->toContain('Impossibile leggere la destinazione')
         ->and($this->fake->writes)->toBeEmpty();
 });
+
+it('copies only the events allowed by the job filters', function () {
+    $this->job->update(['filters' => [
+        'include' => [['field' => 'title', 'operator' => 'starts_with', 'value' => '[Lavoro]']],
+        'exclude' => [['field' => 'title', 'operator' => 'contains', 'value' => 'annullata']],
+    ]]);
+    $this->fake->seed($this->home, Fake::event('a', '[Lavoro] Riunione', '2026-10-10 09:00', '2026-10-10 10:00'));
+    $this->fake->seed($this->home, Fake::event('b', '[Lavoro] Demo annullata', '2026-10-11 09:00', '2026-10-11 10:00'));
+    $this->fake->seed($this->home, Fake::event('c', 'Cena con Luca', '2026-10-12 20:00', '2026-10-12 22:00'));
+
+    $plan = app(SyncEngine::class)->plan($this->job->fresh());
+    $run = syncNow($this->job);
+
+    expect(collect($plan->skipped)->pluck('reason', 'title')->all())->toBe([
+        '[Lavoro] Demo annullata' => 'escluso dal filtro: Titolo contiene «annullata»',
+        'Cena con Luca' => 'non soddisfa il filtro: Titolo inizia con «[Lavoro]»',
+    ])
+        ->and($run->created_count)->toBe(1)
+        ->and($run->skipped_count)->toBe(2)
+        ->and(titlesOn($this->fake, $this->target))->toBe(['[Lavoro] Riunione']);
+});
+
+it('deletes the copies of events that stop matching the filters', function () {
+    $this->fake->seed($this->home, Fake::event('a', 'Riunione', '2026-10-10 09:00', '2026-10-10 10:00'));
+    $this->fake->seed($this->home, Fake::event('b', 'Palestra', '2026-10-11 18:00', '2026-10-11 19:00'));
+    syncNow($this->job);
+
+    $this->job->update(['filters' => ['exclude' => [['field' => 'title', 'operator' => 'equals', 'value' => 'palestra']]]]);
+    $run = syncNow($this->job);
+
+    expect($run->deleted_count)->toBe(1)
+        ->and(collect($run->plan)->firstWhere('op', 'delete')['reason'])->toBe('escluso dai filtri del job')
+        ->and(titlesOn($this->fake, $this->target))->toBe(['Riunione']);
+
+    // Back in when the filter goes away.
+    $this->job->update(['filters' => null]);
+
+    expect(syncNow($this->job)->created_count)->toBe(1)
+        ->and(titlesOn($this->fake, $this->target))->toBe(['Palestra', 'Riunione']);
+});
+
+it('does not mistake a filter that excludes everything for an empty source', function () {
+    foreach (['a', 'b', 'c', 'd'] as $i => $uid) {
+        $this->fake->seed($this->home, Fake::event($uid, "Turno {$uid}", '2026-10-1'.$i.' 09:00', '2026-10-1'.$i.' 10:00'));
+    }
+    syncNow($this->job);
+
+    $this->job->update(['filters' => ['include' => [['field' => 'title', 'operator' => 'contains', 'value' => 'ferie']]]]);
+    $run = syncNow($this->job);
+
+    expect($run->status)->toBe(SyncRunStatus::Success)
+        ->and($run->deleted_count)->toBe(4)
+        ->and($this->fake->eventsOn($this->target))->toBeEmpty();
+});
+
+it('strips the matched prefix from the copies', function () {
+    $this->job->update(['title_prefix' => '[iCloud]', 'filters' => [
+        'include' => [['field' => 'title', 'operator' => 'starts_with', 'value' => '[Lavoro]']],
+    ]]);
+    $this->fake->seed($this->home, Fake::event('a', '[Lavoro] Riunione', '2026-10-10 09:00', '2026-10-10 10:00'));
+    syncNow($this->job);
+
+    expect(titlesOn($this->fake, $this->target))->toBe(['[iCloud] [Lavoro] Riunione']);
+
+    // Turning the option on updates the existing copy.
+    $this->job->update(['filters' => [...$this->job->filters, 'strip_prefix' => true]]);
+    $run = syncNow($this->job);
+
+    expect($run->updated_count)->toBe(1)
+        ->and(titlesOn($this->fake, $this->target))->toBe(['[iCloud] Riunione']);
+});
+
+it('filters on the original title in busy-only mode', function () {
+    $this->job->update(['privacy_mode' => PrivacyMode::BusyOnly, 'busy_title' => 'Occupato', 'filters' => [
+        'include' => [['field' => 'title', 'operator' => 'starts_with', 'value' => '[Lavoro]']],
+        'strip_prefix' => true,
+    ]]);
+    $this->fake->seed($this->home, Fake::event('a', '[Lavoro] Riunione', '2026-10-10 09:00', '2026-10-10 10:00'));
+    $this->fake->seed($this->home, Fake::event('b', 'Dentista', '2026-10-11 09:00', '2026-10-11 10:00'));
+
+    syncNow($this->job);
+
+    expect(titlesOn($this->fake, $this->target))->toBe(['Occupato']);
+});
+
+it('applies the filters before picking a copy among duplicate sources', function () {
+    $this->job->syncSources([$this->home->id, $this->work->id]);
+    $this->job->update(['filters' => ['exclude' => [['field' => 'location', 'operator' => 'contains', 'value' => 'casa']]]]);
+    // Same invitation on both calendars: the first source has a location that is excluded.
+    $this->fake->seed($this->home, Fake::event('invite', 'Riunione', '2026-10-10 09:00', '2026-10-10 10:00', ['location' => 'Da casa']));
+    $this->fake->seed($this->work, Fake::event('invite', 'Riunione', '2026-10-10 09:00', '2026-10-10 10:00', ['location' => 'Ufficio']));
+
+    syncNow($this->job);
+
+    expect($this->fake->eventsOn($this->target))->toHaveCount(1)
+        ->and(EventMapping::sole()->source_calendar_id)->toBe($this->work->id);
+});

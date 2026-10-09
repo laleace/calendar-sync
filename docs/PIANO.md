@@ -1,6 +1,6 @@
 # calendar-sync — Piano (Step 0)
 
-> Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7 e 9; lo step 8 è stato eliminato).
+> Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9 e 10; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
@@ -145,6 +145,7 @@ Alla discovery scarto le collezioni senza VEVENT, per esempio i Promemoria iClou
 | title_prefix | string(50) null | |
 | allow_duplicates | bool, default false | `false`: lo stesso UID in più sorgenti produce una sola copia |
 | skip_existing_in_target | bool, default false | `true`: salta gli eventi il cui UID esiste già nel target, per esempio l'invito originale |
+| filters | json null | Regole di inclusione ed esclusione sugli eventi sorgente (step 10, §5.3) |
 | next_run_at | timestamp null, indice | Usato dallo scheduler |
 | last_run_at | timestamp null | |
 | timestamps | | |
@@ -220,7 +221,8 @@ La finestra va da oggi − X giorni alle 00:00 fino alla fine del giorno oggi + 
 1. **Lettura.** Per ogni sorgente chiamo `listEvents()` e scarto:
    - gli eventi con un marker calsync, di qualsiasi job;
    - gli eventi con stato cancellato;
-   - in `busy_only`, anche gli eventi segnati "libero" e, dove il provider lo espone, gli inviti rifiutati.
+   - in `busy_only`, anche gli eventi segnati "libero" e, dove il provider lo espone, gli inviti rifiutati;
+   - gli eventi che non passano i filtri del job (step 10).
 
    Se la lettura di una sorgente fallisce, la sorgente è marcata come non affidabile: l'errore finisce nel run e **nessuna delete** viene eseguita per i suoi eventi.
 2. **Trasformazione.** Converto il DTO nel payload per il target, applicando privacy e prefisso.
@@ -338,6 +340,7 @@ Idempotenza:
 | 7 | `SyncJobRunner`, lock, `calsync:dispatch-due`, "Esegui ora", storico SyncRun, azione "Rimuovi copie del job" | Test di coda, lock e scheduler. Prova reale con `queue:work` |
 | 8 | ~~API per n8n~~: eliminato il 2026-10-08 | — |
 | 9 | `deploy/` (nginx, pool php-fpm, systemd per coda e scheduler, cron alternativo, env di esempio, script di aggiornamento) e README operativo. Configurazione solo LAN | `calsync:doctor` e checklist in `deploy/README.md` |
+| 10 | Filtri per job: regole "copia solo" ed "escludi" su titolo, luogo, note, giorno, ora di inizio, tutto il giorno, libero, provvisorio, ricorrente. Opzione per togliere il prefisso filtrato dal titolo della copia | Test unitari delle regole, test del motore e del form. Poi dry-run su un job reale |
 
 ## 7. Decisioni dalle risposte (2026-10-07)
 
@@ -355,6 +358,7 @@ Idempotenza:
 4. **Duplicati configurabili per job:** `allow_duplicates` e `skip_existing_in_target` (§4, §5.4).
 5. **Progetto nella root del repo**, git locale con un commit per step. Il push verso Gitea lo gestisci tu.
 6. **Niente API per n8n** (decisione del 2026-10-08). Lo scopo dell'app è solo sincronizzare e aggregare calendari. Rimossi Sanctum, `routes/api.php` e il trigger `api` dei run. La migration `drop_personal_access_tokens_table` elimina la tabella dai database già migrati.
+7. **Filtri per job** (decisione del 2026-10-09). Valgono per tutte le sorgenti del job: per filtri diversi su sorgenti diverse si creano più job verso la stessa destinazione. Con l'opzione "togli il prefisso", la copia di "[Lavoro] Riunione" si chiama "Riunione".
 
 ## 8. Note di implementazione
 
@@ -458,3 +462,13 @@ Idempotenza:
   - Bug evitato: con il default di Laravel (`retry_after` a 90 s) un sync lungo sarebbe stato consegnato a un secondo worker mentre era ancora in corso. Ora vale 900 s, sopra il timeout di 600 s del runner, e un test lo garantisce.
   - `calsync:doctor` controlla APP_KEY, debug, HTTPS, cookie sicuri, `retry_after`, store dei lock, OAuth e redirect URI, database, admin, battito dello scheduler e coda ferma.
   - Database di produzione separato da quello di sviluppo, altrimenti il `php artisan dev` del Mac eseguirebbe i job di produzione. `APP_KEY` va salvata: cifra le credenziali.
+- **Step 10.**
+  - Le regole stanno nella colonna JSON `sync_jobs.filters`: `include`, `include_mode` (`any` o `all`), `exclude` e `strip_prefix`. `EventFilters` e `FilterRule` le interpretano; le regole incomplete o non valide vengono ignorate, ma il form non le lascia salvare.
+  - Si filtra l'evento originale, prima della privacy e del prefisso del job. Un evento che corrisponde a una regola di esclusione viene saltato anche se rispetta quelle di inclusione.
+  - Il testo si confronta senza distinguere maiuscole e minuscole. L'espressione regolare si scrive senza delimitatori; viene validata al salvataggio, e un errore durante l'esecuzione conta come "non corrisponde".
+  - Giorno della settimana e ora di inizio si valutano nella timezone dell'app. Gli eventi di tutto il giorno mantengono la loro data e non rientrano mai in una fascia oraria; una fascia con "Alle" prima di "Dalle" scavalca la mezzanotte.
+  - I filtri si applicano prima della scelta tra sorgenti duplicate: se l'evento viene escluso nella prima sorgente, vale la copia della seconda.
+  - Le copie di eventi che smettono di passare i filtri vengono cancellate con motivo "escluso dai filtri del job". La protezione "sorgente vuota" conta gli eventi letti dalla sorgente, non quelli rimasti dopo i filtri.
+  - "Togli il prefisso" usa solo le regole di inclusione "Titolo inizia con": vince il prefisso più lungo, si tolgono anche i separatori che seguono (`:`, `-`, `–`, `|`) e un titolo fatto solo del prefisso resta com'è. Cambiare l'opzione aggiorna le copie esistenti, perché cambia l'hash.
+  - Le ore della fascia oraria non passano per la conversione di fuso del TimePicker di Filament: sono ore del giorno, non istanti.
+  - Nella lista dei job la colonna "Filtri" mostra il numero di regole.
