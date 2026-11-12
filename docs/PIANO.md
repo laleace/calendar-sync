@@ -2,7 +2,7 @@
 
 > Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9, 10 e 11; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
-> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9. Da approvare.
+> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -515,3 +515,11 @@ Idempotenza:
 | 15 | Documentazione: `README.md` in inglese (funzioni, screenshot, installazione Docker e bare metal, Google OAuth, FAQ) e `README.it.md`. `docs/google-oauth.md` e la guida HTTPS anche in inglese. `CONTRIBUTING.md` breve, `FUNDING.yml`, template per le issue. `PIANO.md` resta in italiano come documento di progetto | Rilettura; i link funzionano |
 | 16 | CI su GitHub Actions: test Pest e Pint a ogni push e pull request, build dell'immagine Docker sui tag | Workflow verde su un branch di prova |
 | 17 | Pubblicazione: riscrittura degli autori, force push su Gitea (dopo il tuo OK), riallineamento del container (lo fai tu), creazione del repository pubblico su GitHub, push, tag `v1.0.0`, release, attivazione di Sponsors | Repository visibile, CI verde, container aggiornato con `calsync:doctor` OK |
+
+### 9.3 Note di implementazione
+- **Step 12.**
+  - Licenza `AGPL-3.0-only`; il pacchetto Composer si chiama `laleace/calendar-sync`, come il futuro repository GitHub.
+  - La pagina privacy vale per qualsiasi installazione e linka il codice sorgente (`CALSYNC_SOURCE_URL`), come chiede la sezione 13 dell'AGPL a chi offre l'app in rete. Chi pubblica una versione modificata punta la variabile al proprio fork.
+  - La guida di deploy clona dal repository pubblico via HTTPS; la deploy key resta per i repository privati. Hostname e IP reali sostituiti da esempi (`calsync.miodominio.it`, `192.168.1.50`, `192.168.1.51`). Le installazioni esistenti non cambiano: `update.sh` è invariato e il `.env` di produzione non è toccato.
+  - `SECURITY.md` in inglese: segnalazioni tramite il private vulnerability reporting di GitHub, da attivare allo step 17.
+  - `composer audit` segnala 11 advisory su 6 pacchetti (Livewire 4.4.7 e componenti Symfony). Da aggiornare con un `composer update` prima della pubblicazione.

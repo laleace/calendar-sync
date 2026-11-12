@@ -6,7 +6,7 @@ Nei comandi usa questi valori, sostituendoli con i tuoi:
 
 | Segnaposto | Esempio | Cos'è |
 |---|---|---|
-| `calsync.example.com` | `calsync.example.com` | Hostname del pannello |
+| `calsync.example.com` | `calsync.miodominio.it` | Hostname del pannello |
 | `192.168.1.50` | | IP statico del container calendar-sync |
 | `192.168.1.51` | | IP del container MySQL |
 
@@ -75,17 +75,36 @@ mysql -u root -p < create-database.sql
 ```
 
 - L'utente `calendar_sync` può collegarsi solo dall'IP del container calendar-sync. Se il container MySQL ha un firewall, apri la porta 3306 solo a quell'IP.
-- **Usa un database separato da quello di sviluppo.** Due installazioni sullo stesso database condividerebbero coda e scheduler: il `php artisan dev` del Mac eseguirebbe i sync di produzione e viceversa.
+- **Usa un database separato da quello di sviluppo.** Due installazioni sullo stesso database condividerebbero coda e scheduler: un'installazione di sviluppo (`php artisan dev`) eseguirebbe i sync di produzione e viceversa.
 
 ## 5. Codice
 
-Il push manda il codice dal Mac a Gitea. Qui serve il percorso inverso: il container **scarica** il codice da Gitea, adesso con `git clone` e poi a ogni aggiornamento con `git pull`, eseguito da `update.sh`. Per leggere un repository privato il container ha bisogno di una sua identità. La più adatta è una **deploy key**:
+Il container scarica il codice con `git clone`. A ogni aggiornamento `update.sh` lo aggiorna con `git pull`.
+
+**5.1 Clona il repository.** La cartella deve essere vuota: il punto finale di `git clone` significa "qui dentro". Dal repository pubblico basta HTTPS, senza credenziali:
+
+```bash
+cd /var/www/calendar-sync
+runuser -u calsync -- env HOME=/home/calsync git clone https://github.com/laleace/calendar-sync.git .
+```
+
+Se installi da un repository privato, per esempio un tuo fork, segui prima il punto 5.3 e clona con il suo indirizzo SSH.
+
+**5.2 Installa le dipendenze.** La cartella `vendor/` non è nel repository, la ricrea Composer.
+
+```bash
+runuser -u calsync -- env HOME=/home/calsync composer install --no-dev --optimize-autoloader --no-interaction
+```
+
+`runuser -u calsync` esegue il comando come utente `calsync`, così i file gli appartengono. `HOME=/home/calsync` fa usare a git e Composer la sua cartella home invece di quella di root.
+
+**5.3 Solo per un repository privato: deploy key.** Per leggere un repository privato (Gitea, GitLab, GitHub) il container ha bisogno di una sua identità. La più adatta è una **deploy key**:
 - è una chiave SSH generata sul container per l'utente `calsync`;
-- Gitea la associa a **un solo repository**, in **sola lettura**;
-- sul server non resta nessuna password del tuo account Gitea;
+- il server git la associa a **un solo repository**, in **sola lettura**;
+- sul server non resta nessuna password del tuo account;
 - la puoi revocare in qualsiasi momento.
 
-**5.1 Genera la chiave** sul container, come utente `calsync` e senza passphrase, perché gli aggiornamenti devono girare senza interazione:
+Genera la chiave sul container, come utente `calsync` e senza passphrase, perché gli aggiornamenti devono girare senza interazione:
 
 ```bash
 install -d -o calsync -g calsync -m 700 /home/calsync/.ssh
@@ -95,29 +114,17 @@ cat /home/calsync/.ssh/id_ed25519.pub
 
 L'ultimo comando stampa la chiave **pubblica**, una riga che inizia con `ssh-ed25519`: copiala. La chiave privata (`id_ed25519`, senza `.pub`) non esce mai dal container.
 
-**5.2 Registrala su Gitea:** apri il repository → **Impostazioni → Chiavi di deploy → Aggiungi chiave**. Incolla la chiave pubblica e dai un nome, per esempio `container calendar-sync`. Lascia **disattivato** "Abilita accesso in scrittura".
+Registrala nelle impostazioni del repository, nella sezione **Deploy keys** (su Gitea **Chiavi di deploy**), lasciando **disattivato** l'accesso in scrittura.
 
-**5.3 Trova l'indirizzo SSH del repository:** nella pagina del repository, pulsante clona, scheda **SSH**. Ha una forma come `ssh://git@git.example.com:2222/user/calendar-sync.git` oppure `git@192.168.1.30:user/calendar-sync.git`. Se Gitea gira in Docker, la porta SSH è spesso 2222 invece di 22.
-
-**5.4 Prova l'accesso:**
+L'indirizzo SSH del repository è nel pulsante di clone, scheda **SSH**. Ha una forma come `git@github.com:utente/calendar-sync.git` oppure `ssh://git@git.example.com:2222/utente/calendar-sync.git`. Un server git in Docker usa spesso la porta 2222 invece di 22. Prova l'accesso con il tuo host e la tua porta:
 
 ```bash
 runuser -u calsync -- ssh -T -p 2222 git@git.example.com
 ```
 
-Usa il tuo host e la tua porta. La prima volta SSH chiede di confermare l'impronta del server: rispondi `yes`. Se Gitea risponde *"You've successfully authenticated … but Gitea does not provide shell access"*, è tutto a posto.
+La prima volta SSH chiede di confermare l'impronta del server: rispondi `yes`. Se il server risponde che l'autenticazione è riuscita ma non offre una shell, è tutto a posto. Poi clona come al punto 5.1, con l'indirizzo SSH al posto di quello HTTPS.
 
-**5.5 Clona e installa le dipendenze.** La cartella deve essere vuota: il punto finale di `git clone` significa "qui dentro". La cartella `vendor/` non è nel repository, la ricrea Composer.
-
-```bash
-cd /var/www/calendar-sync
-runuser -u calsync -- env HOME=/home/calsync git clone <INDIRIZZO-SSH> .
-runuser -u calsync -- env HOME=/home/calsync composer install --no-dev --optimize-autoloader --no-interaction
-```
-
-`runuser -u calsync` esegue il comando come utente `calsync`, così i file gli appartengono. `HOME=/home/calsync` fa usare a git e Composer la sua cartella home invece di quella di root.
-
-> **Alternativa senza SSH:** se il tuo Gitea non espone SSH, crea un **token di accesso** in sola lettura (**Impostazioni utente → Applicazioni**, permesso `repository: read`) e clona via HTTPS: `git clone https://<utente>:<token>@git.example.com/user/calendar-sync.git .`. Il token resta salvato in `.git/config` del container. Funziona, ma la deploy key è più pulita.
+> **Alternativa senza SSH:** crea un **token di accesso** in sola lettura sul server git e clona via HTTPS: `git clone https://<utente>:<token>@git.example.com/utente/calendar-sync.git .`. Il token resta salvato in `.git/config` del container. Funziona, ma la deploy key è più pulita.
 
 Il file `.env` non è nel repository (è in `.gitignore`): lo crei sul container al punto successivo.
 
@@ -169,7 +176,7 @@ HOST=calsync.example.com
 
 1. Su Cloudflare, in **DNS → Records**, aggiungi un record `A` `calsync` → `192.168.1.50` con il **proxy disattivato** (nuvola grigia, "DNS only"). Il nome risolve all'IP privato: da Internet non porta da nessuna parte.
 
-   Alcuni router e DNS locali (FRITZ!Box, pfSense/OPNsense, Pi-hole, AdGuard) bloccano i nomi pubblici che risolvono su IP privati, la cosiddetta protezione "DNS rebinding". Per riconoscere il caso, dal Mac:
+   Alcuni router e DNS locali (FRITZ!Box, pfSense/OPNsense, Pi-hole, AdGuard) bloccano i nomi pubblici che risolvono su IP privati, la cosiddetta protezione "DNS rebinding". Per riconoscere il caso, dal tuo computer:
 
    ```bash
    dig +short calsync.example.com @1.1.1.1
@@ -180,7 +187,7 @@ HOST=calsync.example.com
    - **FRITZ!Box**: **Rete domestica → Rete → Impostazioni di rete → Protezione dal DNS rebinding**. In "Eccezioni per nomi host" scrivi `calsync.example.com` e premi **Applica**. A seconda della versione di FRITZ!OS il percorso può cambiare leggermente: cerca "rebind".
    - **Altri router o DNS locali**: un'eccezione equivalente, oppure un record DNS locale `calsync.example.com → 192.168.1.50`.
 
-   Il router può continuare a dare la risposta filtrata già in cache fino a 5 minuti (il TTL del record): aspetta, poi svuota la cache DNS del Mac con `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`.
+   Il router può continuare a dare la risposta filtrata già in cache fino a 5 minuti (il TTL del record): aspetta, poi svuota la cache DNS del computer (su macOS: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`).
 
 2. Su Cloudflare crea un **API Token** in **My Profile → API Tokens → Create Token**, partendo dal modello "Edit zone DNS". Permessi: `Zone → DNS → Edit`, limitati alla sola zona del tuo dominio.
 
@@ -240,15 +247,15 @@ Tutte le voci devono essere `OK`. Lo scheduler risulta attivo dopo il primo minu
 
 Poi, dal browser in LAN:
 1. Apri `https://calsync.example.com`: il certificato è valido e compare la pagina di login.
-2. **Account → Nuovo:** ricrea l'account iCloud (password per app) e collega Google ("Connetti con Google"). Il database di produzione parte vuoto.
-3. Ricrea il job, fai un **Dry-run** e poi **Esegui ora**. Controlla lo **Storico run**.
+2. **Account → Nuovo:** crea gli account iCloud (serve una password per app) o CalDAV, e collega Google con "Connetti con Google".
+3. Crea un job, fai un **Dry-run** e poi **Esegui ora**. Controlla lo **Storico run**.
 4. Attiva il job: lo scheduler lo esegue con la frequenza impostata.
 
-Dopo il primo sync in produzione, ferma o disattiva gli stessi job sul Mac, così non scrivono due volte sugli stessi calendari.
+Se gli stessi job erano attivi in un'installazione di sviluppo, disattivali lì dopo il primo sync in produzione, così non scrivono due volte sugli stessi calendari.
 
 ## Aggiornamenti
 
-Dopo un push su Gitea:
+Per installare una nuova versione del branch su cui è il checkout:
 
 ```bash
 bash /var/www/calendar-sync/deploy/update.sh
@@ -273,7 +280,7 @@ systemctl reload php8.4-fpm
 ```
 
 **`APP_KEY`:** se cambia, le credenziali salvate prima non si possono più decifrare. Il pannello continua a funzionare, ma segna quegli account come "Credenziali illeggibili", e `calsync:doctor` li elenca. Ci sono due soluzioni:
-- rimettere la chiave con cui erano state salvate, per esempio quella del Mac se il database viene da lì;
+- rimettere la chiave con cui erano state salvate, per esempio quella dell'installazione di sviluppo, se il database viene da lì;
 - reinserire la password degli account CalDAV (**Modifica**) e riconnettere quelli Google (**Riconnetti Google**). Calendari e job restano dove sono.
 
 ## Log

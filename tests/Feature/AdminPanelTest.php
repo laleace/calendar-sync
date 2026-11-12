@@ -61,6 +61,14 @@ it('serves the privacy page without login', function () {
         ->assertSee('myaccount.google.com/permissions');
 });
 
+it('links the source code from the privacy page', function () {
+    config(['calsync.source_url' => 'https://git.example.com/fork/calendar-sync']);
+
+    $this->get('/privacy')
+        ->assertOk()
+        ->assertSee('https://git.example.com/fork/calendar-sync');
+});
+
 it('honours X-Forwarded-Proto only from local proxies', function (string $remoteAddress, string $expectedScheme) {
     $this->withServerVariables(['REMOTE_ADDR' => $remoteAddress])
         ->withHeaders(['X-Forwarded-Proto' => 'https', 'X-Forwarded-Port' => '443'])

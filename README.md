@@ -36,3 +36,7 @@ Comandi utili:
 ```bash
 php artisan test
 ```
+
+## Licenza
+
+[AGPL-3.0](LICENSE). Per segnalare una vulnerabilità vedi [SECURITY.md](SECURITY.md).

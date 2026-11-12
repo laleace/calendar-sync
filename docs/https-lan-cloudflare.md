@@ -55,7 +55,7 @@ dig +short $HOST @1.1.1.1   # restituisce l'IP
 dig +short $HOST            # vuoto  → è il router
 ```
 
-Soluzione: aggiungi `HOST` (o tutto `tuodominio.it`) alle eccezioni anti-rebinding, oppure crea un record DNS locale `HOST → IP`. FRITZ!Box: *Rete domestica → Rete → Impostazioni di rete → Protezione dal DNS rebinding*. Poi svuota la cache sul Mac:
+Soluzione: aggiungi `HOST` (o tutto `tuodominio.it`) alle eccezioni anti-rebinding, oppure crea un record DNS locale `HOST → IP`. FRITZ!Box: *Rete domestica → Rete → Impostazioni di rete → Protezione dal DNS rebinding*. Poi svuota la cache DNS del computer (comando per macOS):
 
 ```bash
 sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder

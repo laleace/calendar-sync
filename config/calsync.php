@@ -19,6 +19,12 @@ return [
     */
     'http_log' => (bool) env('CALSYNC_HTTP_LOG', false),
 
+    /*
+    | Where users of this instance can get the source code (AGPL-3.0 section 13).
+    | Point it to your fork if you run a modified version.
+    */
+    'source_url' => env('CALSYNC_SOURCE_URL', 'https://github.com/laleace/calendar-sync'),
+
     'icloud' => [
         'base_url' => 'https://caldav.icloud.com/',
     ],
