@@ -522,7 +522,7 @@ Idempotenza:
   - La pagina privacy vale per qualsiasi installazione e linka il codice sorgente (`CALSYNC_SOURCE_URL`), come chiede la sezione 13 dell'AGPL a chi offre l'app in rete. Chi pubblica una versione modificata punta la variabile al proprio fork.
   - La guida di deploy clona dal repository pubblico via HTTPS; la deploy key resta per i repository privati. Hostname e IP reali sostituiti da esempi (`calsync.miodominio.it`, `192.168.1.50`, `192.168.1.51`). Le installazioni esistenti non cambiano: `update.sh` è invariato e il `.env` di produzione non è toccato.
   - `SECURITY.md` in inglese: segnalazioni tramite il private vulnerability reporting di GitHub, da attivare allo step 17.
-  - `composer audit` segnala 11 advisory su 6 pacchetti (Livewire 4.4.7 e componenti Symfony). Da aggiornare con un `composer update` prima della pubblicazione.
+  - `composer audit` segnalava 11 advisory su 6 pacchetti (Livewire 4.4.7 e componenti Symfony). Risolte il 2026-11-13 con un `composer update` (Laravel 13.42, Filament 5.11, Livewire 4.4.8, Symfony 8.1.x…): nessuna advisory, 358 test verdi, Pint pulito.
 - **Step 13.**
   - Chiavi in inglese nel codice (`__('Run now')`) e traduzione italiana in `lang/it.json`, 408 voci. L'inglese non ha un file: è il testo stesso della chiave. Una nuova lingua è un nuovo `lang/xx.json`.
   - Le frasi con parti variabili usano i placeholder (`:name`, `:count`), le forme singolare e plurale `trans_choice`. Le etichette statiche di Filament (`$modelLabel`, `$navigationLabel`, `$title`) sono diventate metodi, perché le proprietà non possono chiamare `__()`; per lo stesso motivo `SyncJobForm::INTERVALS` e `PlanFormatter::OPERATIONS` sono metodi.
