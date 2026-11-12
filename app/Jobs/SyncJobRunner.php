@@ -54,7 +54,7 @@ class SyncJobRunner implements ShouldQueue
             $run->update([
                 'status' => SyncRunStatus::Skipped,
                 'finished_at' => now(),
-                'message' => 'Un altro sync di questo job è già in esecuzione.',
+                'message' => __('Another sync of this job is already running.'),
             ]);
 
             return;
@@ -85,7 +85,7 @@ class SyncJobRunner implements ShouldQueue
             ->update([
                 'status' => SyncRunStatus::Failed->value,
                 'finished_at' => now(),
-                'message' => Str::limit('Errore inatteso: '.SecretRedactor::redact($e?->getMessage() ?? 'job terminato'), 490),
+                'message' => Str::limit(__('Unexpected error: :error', ['error' => SecretRedactor::redact($e?->getMessage() ?? __('job terminated'))]), 490),
             ]);
     }
 }

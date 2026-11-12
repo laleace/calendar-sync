@@ -28,8 +28,8 @@ final class GroupFields
     {
         return [
             TextInput::make('name')
-                ->label('Nome del gruppo')
-                ->placeholder('es. Personale')
+                ->label(__('Group name'))
+                ->placeholder(__('e.g. Personal'))
                 ->required()
                 ->maxLength(50)
                 ->rules([
@@ -41,7 +41,7 @@ final class GroupFields
                             ->exists();
 
                         if ($taken) {
-                            $fail('Esiste già un gruppo con questo nome.');
+                            $fail(__('A group with this name already exists.'));
                         }
                     },
                 ]),
@@ -51,20 +51,20 @@ final class GroupFields
     public static function select(): Select
     {
         return Select::make('group_id')
-            ->label('Gruppo')
+            ->label(__('Group'))
             ->relationship('group', 'name')
             ->preload()
             ->searchable()
-            ->placeholder('Nessun gruppo')
+            ->placeholder(__('No group'))
             ->createOptionForm(self::schema())
             ->editOptionForm(self::schema())
-            ->helperText('Serve solo a organizzare il pannello, per esempio "Personale" o "Utente X". Con + ne crei uno nuovo.');
+            ->helperText(__('Only used to organise the panel, for example "Personal" or "User X". Use + to create a new one.'));
     }
 
     public static function column(): TextColumn
     {
         return TextColumn::make('group.name')
-            ->label('Gruppo')
+            ->label(__('Group'))
             ->badge()
             ->color('gray')
             ->placeholder('—')
@@ -78,8 +78,8 @@ final class GroupFields
     public static function filter(?string $through = null): SelectFilter
     {
         return SelectFilter::make('group')
-            ->label('Gruppo')
-            ->options(fn (): array => [self::NONE => 'Senza gruppo'] + Group::orderBy('name')->pluck('name', 'id')->all())
+            ->label(__('Group'))
+            ->options(fn (): array => [self::NONE => __('Without group')] + Group::orderBy('name')->pluck('name', 'id')->all())
             ->query(function (Builder $query, array $data) use ($through): Builder {
                 $value = $data['value'] ?? null;
 
@@ -98,13 +98,13 @@ final class GroupFields
     public static function bulkAction(): BulkAction
     {
         return BulkAction::make('assignGroup')
-            ->label('Assegna gruppo')
+            ->label(__('Assign group'))
             ->icon(Heroicon::OutlinedRectangleGroup)
             ->schema([
                 Select::make('group_id')
-                    ->label('Gruppo')
+                    ->label(__('Group'))
                     ->options(fn (): array => Group::orderBy('name')->pluck('name', 'id')->all())
-                    ->placeholder('Nessun gruppo'),
+                    ->placeholder(__('No group')),
             ])
             ->action(function (BulkAction $action, Collection $records, array $data): void {
                 if ($records->isEmpty()) {
@@ -115,7 +115,7 @@ final class GroupFields
                 $records->toQuery()->update(['group_id' => $data['group_id'] ?? null]);
                 $action->success();
             })
-            ->successNotificationTitle('Gruppo assegnato')
+            ->successNotificationTitle(__('Group assigned'))
             ->deselectRecordsAfterCompletion();
     }
 }

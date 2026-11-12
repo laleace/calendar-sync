@@ -4,6 +4,7 @@ namespace App\Filament\Resources\SyncRuns\Schemas;
 
 use App\Filament\Support\PlanFormatter;
 use App\Models\SyncRun;
+use App\Support\DateFormat;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -23,59 +24,59 @@ class SyncRunInfolist
                         TextEntry::make('syncJob.name')
                             ->label('Job'),
                         TextEntry::make('kind')
-                            ->label('Tipo')
+                            ->label(__('Type'))
                             ->state(fn (SyncRun $record): string => $record->kindLabel())
                             ->badge()
                             ->color('gray'),
                         TextEntry::make('triggered_by')
-                            ->label('Avviato da')
+                            ->label(__('Started by'))
                             ->badge(),
                         TextEntry::make('status')
-                            ->label('Stato')
+                            ->label(__('Status'))
                             ->badge(),
                         TextEntry::make('created_at')
-                            ->label('Accodato')
-                            ->dateTime('d/m/Y H:i:s'),
+                            ->label(__('Queued at'))
+                            ->dateTime(DateFormat::dateTimeWithSeconds()),
                         TextEntry::make('started_at')
-                            ->label('Inizio')
-                            ->dateTime('d/m/Y H:i:s')
+                            ->label(__('Start'))
+                            ->dateTime(DateFormat::dateTimeWithSeconds())
                             ->placeholder('—'),
                         TextEntry::make('finished_at')
-                            ->label('Fine')
-                            ->dateTime('d/m/Y H:i:s')
+                            ->label(__('End'))
+                            ->dateTime(DateFormat::dateTimeWithSeconds())
                             ->placeholder('—'),
                         TextEntry::make('duration')
-                            ->label('Durata')
+                            ->label(__('Duration'))
                             ->state(fn (SyncRun $record): ?string => $record->durationForHumans())
                             ->placeholder('—'),
                         TextEntry::make('message')
-                            ->label('Esito')
+                            ->label(__('Outcome'))
                             ->placeholder('—')
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('Risultato')
-                    ->description(fn (SyncRun $record): ?string => $record->dry_run ? 'Dry-run: operazioni previste, nessuna modifica eseguita.' : null)
+                Section::make(__('Result'))
+                    ->description(fn (SyncRun $record): ?string => $record->dry_run ? __('Dry-run: planned operations, nothing was changed.') : null)
                     ->columns(5)
                     ->schema([
-                        TextEntry::make('created_count')->label('Create')->numeric(),
-                        TextEntry::make('updated_count')->label('Aggiornate')->numeric(),
-                        TextEntry::make('deleted_count')->label('Eliminate')->numeric(),
-                        TextEntry::make('skipped_count')->label('Saltati')->numeric(),
-                        TextEntry::make('error_count')->label('Errori')->numeric()
+                        TextEntry::make('created_count')->label(__('Created'))->numeric(),
+                        TextEntry::make('updated_count')->label(__('Updated'))->numeric(),
+                        TextEntry::make('deleted_count')->label(__('Deleted'))->numeric(),
+                        TextEntry::make('skipped_count')->label(__('Skipped events'))->numeric(),
+                        TextEntry::make('error_count')->label(__('Errors'))->numeric()
                             ->color(fn (int $state): ?string => $state > 0 ? 'danger' : null),
                     ]),
 
-                Section::make('Errori')
+                Section::make(__('Errors'))
                     ->visible(fn (SyncRun $record): bool => filled($record->errors))
                     ->schema([
                         RepeatableEntry::make('errors')
                             ->hiddenLabel()
                             ->table([
-                                TableColumn::make('Operazione'),
-                                TableColumn::make('Sorgente'),
-                                TableColumn::make('Evento'),
-                                TableColumn::make('Messaggio'),
+                                TableColumn::make(__('Operation')),
+                                TableColumn::make(__('Source')),
+                                TableColumn::make(__('Event')),
+                                TableColumn::make(__('Message')),
                             ])
                             ->schema([
                                 TextEntry::make('op')
@@ -90,21 +91,21 @@ class SyncRunInfolist
                             ]),
                     ]),
 
-                Section::make('Operazioni')
+                Section::make(__('Operations'))
                     ->description(fn (SyncRun $record): string => $record->dry_run
-                        ? 'Operazioni previste dal dry-run (al massimo 500).'
-                        : 'Operazioni tentate in questo run (al massimo 500); quelle fallite compaiono anche tra gli errori.')
+                        ? __('Operations planned by the dry-run (500 at most).')
+                        : __('Operations attempted in this run (500 at most); failed ones are also listed under errors.'))
                     ->visible(fn (SyncRun $record): bool => filled($record->plan))
                     ->collapsible()
                     ->schema([
                         RepeatableEntry::make('plan')
                             ->hiddenLabel()
                             ->table([
-                                TableColumn::make('Operazione'),
-                                TableColumn::make('Quando'),
-                                TableColumn::make('Titolo della copia'),
-                                TableColumn::make('Sorgente'),
-                                TableColumn::make('Motivo'),
+                                TableColumn::make(__('Operation')),
+                                TableColumn::make(__('When')),
+                                TableColumn::make(__('Copy title')),
+                                TableColumn::make(__('Source')),
+                                TableColumn::make(__('Reason')),
                             ])
                             ->schema([
                                 TextEntry::make('op')

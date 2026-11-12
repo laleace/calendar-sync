@@ -2,7 +2,7 @@
     <x-filament::callout
         color="warning"
         icon="heroicon-o-clock"
-        heading="{{ $stuck }} sync in coda da più di {{ $minutes }} minuti"
-        description="Il worker della coda non sembra attivo. In sviluppo avvia php artisan dev (oppure php artisan queue:work --queue=sync,default); in produzione controlla il servizio systemd del worker."
+        :heading="__(':count syncs queued for more than :minutes minutes', ['count' => $stuck, 'minutes' => $minutes])"
+        :description="__('The queue worker does not seem to be running. In development start php artisan dev (or php artisan queue:work --queue=sync,default); in production check the worker service.')"
     />
 @endif

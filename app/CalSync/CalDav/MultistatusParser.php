@@ -30,7 +30,7 @@ final class MultistatusParser
         $root = $document->documentElement;
 
         if (! $loaded || $root === null || $root->namespaceURI !== Ns::DAV || $root->localName !== 'multistatus') {
-            throw new ProviderException('Risposta CalDAV non valida: atteso un documento XML multistatus.');
+            throw new ProviderException(__('Invalid CalDAV response: expected an XML multistatus document.'));
         }
 
         $xpath = new DOMXPath($document);

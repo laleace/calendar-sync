@@ -14,7 +14,7 @@ enum AccountType: string implements HasLabel
     {
         return match ($this) {
             self::IcloudCaldav => 'iCloud (CalDAV)',
-            self::CaldavGeneric => 'CalDAV generico',
+            self::CaldavGeneric => __('Generic CalDAV'),
             self::Google => 'Google',
         };
     }

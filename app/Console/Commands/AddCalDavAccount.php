@@ -24,14 +24,14 @@ class AddCalDavAccount extends Command
 {
     public function handle(): int
     {
-        $type = match ($this->option('type') ?: select('Tipo di account', ['icloud' => 'iCloud', 'generic' => 'CalDAV generico'])) {
+        $type = match ($this->option('type') ?: select(__('Account type'), ['icloud' => 'iCloud', 'generic' => __('Generic CalDAV')])) {
             'icloud' => AccountType::IcloudCaldav,
             'generic' => AccountType::CaldavGeneric,
             default => null,
         };
 
         if ($type === null) {
-            $this->components->error('Tipo non valido: usa "icloud" oppure "generic".');
+            $this->components->error(__('Invalid type: use "icloud" or "generic".'));
 
             return self::FAILURE;
         }
@@ -39,21 +39,21 @@ class AddCalDavAccount extends Command
         $baseUrl = config('calsync.icloud.base_url');
 
         if ($type === AccountType::CaldavGeneric) {
-            $baseUrl = $this->option('url') ?: text('URL del server CalDAV', placeholder: 'https://cloud.example.com/remote.php/dav/', required: true);
+            $baseUrl = $this->option('url') ?: text(__('CalDAV server URL'), placeholder: 'https://cloud.example.com/remote.php/dav/', required: true);
 
             if (Validator::make(['url' => $baseUrl], ['url' => 'url:http,https'])->fails()) {
-                $this->components->error('URL non valido: deve iniziare con https:// (o http:// per un server in LAN).');
+                $this->components->error(__('Invalid URL: it must start with https:// (or http:// for a server on the LAN).'));
 
                 return self::FAILURE;
             }
 
             if (str_starts_with(strtolower($baseUrl), 'http://')) {
-                $this->components->warn('URL in chiaro (http): le credenziali viaggeranno senza cifratura. Usalo solo in LAN.');
+                $this->components->warn(__('Plain URL (http): credentials will travel unencrypted. Use it on the LAN only.'));
             }
         }
 
         $name = $this->option('name') ?: text(
-            'Nome dell\'account',
+            __('Account name'),
             default: $type === AccountType::IcloudCaldav ? 'iCloud' : (new Uri($baseUrl))->getHost(),
             required: true,
         );
@@ -64,7 +64,7 @@ class AddCalDavAccount extends Command
         );
 
         $password = $type === AccountType::IcloudCaldav
-            ? password('Password per app', required: true, hint: 'Generala su appleid.apple.com → Accesso e sicurezza → Password per app')
+            ? password(__('App-specific password'), required: true, hint: __('Create it at appleid.apple.com → Sign-In and Security → App-Specific Passwords'))
             : password('Password', required: true);
 
         $account = Account::create([
@@ -74,8 +74,8 @@ class AddCalDavAccount extends Command
             'credentials' => ['username' => $username, 'password' => $password],
         ]);
 
-        $this->components->info("Account #{$account->id} \"{$account->name}\" creato.");
-        $this->line("  Verifica con: <comment>php artisan calsync:test-account {$account->id}</comment>");
+        $this->components->info(__('Account #:id ":name" created.', ['id' => $account->id, 'name' => $account->name]));
+        $this->line('  '.__('Check it with:')." <comment>php artisan calsync:test-account {$account->id}</comment>");
 
         return self::SUCCESS;
     }

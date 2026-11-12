@@ -28,8 +28,8 @@ class EditSyncJob extends EditRecord
             PurgeCopiesAction::make(),
             DeleteAction::make()
                 ->modalDescription(fn (SyncJob $record): string => $record->mappings()->exists()
-                    ? sprintf('Le %d copie create da questo job resteranno nel calendario di destinazione e non saranno più gestite. Per toglierle usa prima "Rimuovi copie".', $record->mappings()->count())
-                    : 'Il job verrà eliminato insieme al suo storico.'),
+                    ? __('The :count copies created by this job will stay in the target calendar and will no longer be managed. To remove them, use "Remove copies" first.', ['count' => $record->mappings()->count()])
+                    : __('The job will be deleted together with its history.')),
         ];
     }
 

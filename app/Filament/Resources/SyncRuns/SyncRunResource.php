@@ -23,14 +23,6 @@ class SyncRunResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
-    protected static ?string $modelLabel = 'run';
-
-    protected static ?string $pluralModelLabel = 'run';
-
-    protected static ?string $navigationLabel = 'Storico run';
-
-    protected static ?string $breadcrumb = 'Storico run';
-
     protected static ?int $navigationSort = 6;
 
     public static function infolist(Schema $schema): Schema
@@ -51,6 +43,26 @@ class SyncRunResource extends Resource
     public static function canEdit(Model $record): bool
     {
         return false;
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('run');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('runs');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Run history');
+    }
+
+    public static function getBreadcrumb(): string
+    {
+        return __('Run history');
     }
 
     public static function getRecordTitle(?Model $record): string

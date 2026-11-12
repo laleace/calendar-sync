@@ -25,7 +25,7 @@ class TestAccount extends Command
         $account = Account::find($this->argument('id'));
 
         if ($account === null) {
-            $this->components->error("Account #{$this->argument('id')} non trovato.");
+            $this->components->error(__('Account #:id not found.', ['id' => $this->argument('id')]));
 
             return self::FAILURE;
         }
@@ -49,14 +49,14 @@ class TestAccount extends Command
         $this->newLine();
 
         if ($summary->calendars->isEmpty()) {
-            $this->components->warn('Nessun calendario di eventi trovato.');
+            $this->components->warn(__('No event calendars found.'));
         } else {
             $this->table(
-                ['ID', 'Nome', 'Scrittura', 'Colore', 'Timezone', 'URL'],
+                ['ID', __('Name'), __('Write'), __('Colour'), 'Timezone', 'URL'],
                 $summary->calendars->map(fn (Calendar $calendar) => [
                     $calendar->id,
                     $calendar->name,
-                    $calendar->can_write ? 'sì' : 'no',
+                    $calendar->can_write ? __('yes') : __('no'),
                     $calendar->color ?? '—',
                     $calendar->timezone ?? '—',
                     $calendar->remote_id,
@@ -64,15 +64,14 @@ class TestAccount extends Command
             );
         }
 
-        $this->line(sprintf(
-            '  Nuovi: %d · Aggiornati: %d · Non più trovati: %d',
-            $summary->created,
-            $summary->updated,
-            $summary->missing->count(),
-        ));
+        $this->line('  '.__('New: :created · Updated: :updated · No longer found: :missing', [
+            'created' => $summary->created,
+            'updated' => $summary->updated,
+            'missing' => $summary->missing->count(),
+        ]));
 
         foreach ($summary->missing as $calendar) {
-            $this->components->warn("Non più presente sul server: #{$calendar->id} {$calendar->name}");
+            $this->components->warn(__('No longer on the server: #:id :name', ['id' => $calendar->id, 'name' => $calendar->name]));
         }
 
         return self::SUCCESS;

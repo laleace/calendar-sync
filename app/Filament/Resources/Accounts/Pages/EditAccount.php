@@ -48,7 +48,7 @@ class EditAccount extends EditRecord
 
         if ($this->record->hasUnreadableCredentials() && blank($data['password'] ?? null)) {
             throw ValidationException::withMessages([
-                'data.password' => 'La password salvata non si può decifrare (la APP_KEY è cambiata): inseriscila di nuovo.',
+                'data.password' => __('The saved password cannot be decrypted (APP_KEY has changed): enter it again.'),
             ]);
         }
 
@@ -79,7 +79,7 @@ class EditAccount extends EditRecord
         $result = app(AccountService::class)->testConnection($this->record);
 
         Notification::make()
-            ->title($result->successful() ? 'Connessione verificata' : 'Connessione non riuscita con i nuovi dati')
+            ->title($result->successful() ? __('Connection verified') : __('Connection failed with the new details'))
             ->body($result->message)
             ->status($result->successful() ? 'success' : 'danger')
             ->send();

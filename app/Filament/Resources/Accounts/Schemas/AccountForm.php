@@ -32,7 +32,7 @@ class AccountForm
                     ->columnSpanFull()
                     ->schema([
                         Select::make('type')
-                            ->label('Tipo')
+                            ->label(__('Type'))
                             ->options(collect(AccountType::cases())->mapWithKeys(fn (AccountType $type) => [$type->value => $type->getLabel()])->all())
                             // Only new Google accounts need the OAuth client; existing ones stay editable.
                             ->disableOptionWhen(fn (string $value, string $operation): bool => $operation === 'create' && $value === AccountType::Google->value && ! $googleConfigured)
@@ -43,27 +43,27 @@ class AccountForm
                             ->disabledOn('edit')
                             ->helperText(fn (Get $get, string $operation): ?string => match (true) {
                                 $operation !== 'create' => null,
-                                AccountResource::typeFrom($get) === AccountType::Google => 'Dopo il salvataggio verrai portato su Google per autorizzare l\'accesso al calendario.',
-                                ! $googleConfigured => 'Per gli account Google imposta prima GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET nel .env (vedi docs/google-oauth.md).',
+                                AccountResource::typeFrom($get) === AccountType::Google => __('After saving you will be taken to Google to authorise access to the calendar.'),
+                                ! $googleConfigured => __('For Google accounts, first set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env (see docs/google-oauth.md).'),
                                 default => null,
                             }),
 
                         TextInput::make('name')
-                            ->label('Nome')
-                            ->placeholder('es. iCloud personale')
+                            ->label(__('Name'))
+                            ->placeholder(__('e.g. Personal iCloud'))
                             ->required()
                             ->maxLength(100),
 
                         GroupFields::select(),
 
                         TextInput::make('base_url')
-                            ->label('URL del server CalDAV')
+                            ->label(__('CalDAV server URL'))
                             ->placeholder('https://cloud.example.com/remote.php/dav/')
                             ->url()
                             ->required()
                             ->maxLength(500)
                             ->visible(fn (Get $get): bool => AccountResource::typeFrom($get) === AccountType::CaldavGeneric)
-                            ->helperText('La discovery prova questo indirizzo e poi /.well-known/caldav. Le credenziali vengono inviate solo a questo host.')
+                            ->helperText(__('The discovery tries this address, then /.well-known/caldav. Credentials are only sent to this host.'))
                             ->columnSpanFull(),
 
                         TextInput::make('username')
@@ -74,7 +74,7 @@ class AccountForm
                             ->autocomplete('off'),
 
                         TextInput::make('password')
-                            ->label(fn (Get $get): string => $isIcloud($get) ? 'Password per app' : 'Password')
+                            ->label(fn (Get $get): string => $isIcloud($get) ? __('App-specific password') : 'Password')
                             ->password()
                             ->revealable()
                             ->visible($isCalDav)
@@ -83,9 +83,9 @@ class AccountForm
                             ->dehydrated(fn (?string $state): bool => filled($state))
                             ->maxLength(255)
                             ->helperText(fn (Get $get, string $operation): string => match (true) {
-                                $operation === 'edit' => 'Lascia vuoto per mantenere la password salvata. La password salvata non viene mai mostrata.',
-                                $isIcloud($get) => 'Non la password dell\'Apple ID: generala su appleid.apple.com → Accesso e sicurezza → Password per app.',
-                                default => 'Viene salvata cifrata e non viene più mostrata.',
+                                $operation === 'edit' => __('Leave empty to keep the saved password. The saved password is never shown.'),
+                                $isIcloud($get) => __('Not your Apple ID password: create one at appleid.apple.com → Sign-In and Security → App-Specific Passwords.'),
+                                default => __('It is stored encrypted and never shown again.'),
                             }),
                     ]),
             ]);

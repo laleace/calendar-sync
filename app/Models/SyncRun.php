@@ -63,7 +63,7 @@ class SyncRun extends Model
     public function kindLabel(): string
     {
         return match (true) {
-            $this->purge => 'Rimozione copie',
+            $this->purge => __('Copy removal'),
             $this->dry_run => 'Dry-run',
             default => 'Sync',
         };

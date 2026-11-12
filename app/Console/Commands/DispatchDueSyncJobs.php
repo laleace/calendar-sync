@@ -40,13 +40,13 @@ class DispatchDueSyncJobs extends Command
 
             // Never pile up runs: if the previous one is still waiting or running, skip this turn.
             if ($job->runs()->whereIn('status', [SyncRunStatus::Queued, SyncRunStatus::Running])->exists()) {
-                $this->components->warn("#{$job->id} {$job->name}: run precedente ancora in corso, salto.");
+                $this->components->warn(__('#:id :name: previous run still in progress, skipping.', ['id' => $job->id, 'name' => $job->name]));
 
                 continue;
             }
 
             $run = $sync->queue($job, SyncTrigger::Schedule);
-            $this->components->info("#{$job->id} {$job->name}: accodato il run #{$run->id}.");
+            $this->components->info(__('#:id :name: queued run #:run.', ['id' => $job->id, 'name' => $job->name, 'run' => $run->id]));
         }
 
         return self::SUCCESS;
@@ -59,7 +59,7 @@ class DispatchDueSyncJobs extends Command
             ->update([
                 'status' => SyncRunStatus::Failed,
                 'finished_at' => now(),
-                'message' => 'Interrotto: il worker si è fermato durante l\'esecuzione.',
+                'message' => __('Interrupted: the worker stopped while running.'),
             ]);
 
         SyncRun::where('status', SyncRunStatus::Queued)
@@ -67,7 +67,7 @@ class DispatchDueSyncJobs extends Command
             ->update([
                 'status' => SyncRunStatus::Failed,
                 'finished_at' => now(),
-                'message' => 'Mai eseguito: il worker della coda non è attivo.',
+                'message' => __('Never run: the queue worker is not running.'),
             ]);
     }
 }

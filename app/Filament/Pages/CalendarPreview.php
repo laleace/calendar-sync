@@ -7,6 +7,7 @@ use App\CalSync\Exceptions\ProviderException;
 use App\CalSync\ProviderRegistry;
 use App\Enums\EventStatus;
 use App\Models\Calendar;
+use App\Support\DateFormat;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -42,10 +43,6 @@ class CalendarPreview extends Page implements HasTable
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static ?string $navigationLabel = 'Anteprima eventi';
-
-    protected static ?string $title = 'Anteprima eventi';
-
     protected static ?int $navigationSort = 20;
 
     protected string $view = 'filament.pages.calendar-preview';
@@ -60,6 +57,16 @@ class CalendarPreview extends Page implements HasTable
     public array $problems = [];
 
     public bool $loaded = false;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Event preview');
+    }
+
+    public function getTitle(): string
+    {
+        return __('Event preview');
+    }
 
     public function mount(ProviderRegistry $providers): void
     {
@@ -85,16 +92,16 @@ class CalendarPreview extends Page implements HasTable
             ->columns(4)
             ->components([
                 Select::make('calendar_id')
-                    ->label('Calendario')
+                    ->label(__('Calendar'))
                     ->options(fn (): array => self::calendarOptions())
                     ->searchable()
                     ->required()
                     ->columnSpan(2),
                 DatePicker::make('from')
-                    ->label('Dal')
+                    ->label(__('From date'))
                     ->required(),
                 DatePicker::make('to')
-                    ->label('Al (incluso)')
+                    ->label(__('To date (included)'))
                     ->required()
                     ->afterOrEqual('from'),
             ]);
@@ -110,12 +117,12 @@ class CalendarPreview extends Page implements HasTable
                     ->footer([
                         Actions::make([
                             Action::make('load')
-                                ->label('Mostra eventi')
+                                ->label(__('Show events'))
                                 ->icon(Heroicon::OutlinedMagnifyingGlass)
                                 ->submit('load'),
                         ]),
                     ]),
-                Callout::make('Alcuni eventi non sono leggibili')
+                Callout::make(__('Some events cannot be read'))
                     ->description(fn (): string => implode(' · ', $this->problems))
                     ->warning()
                     ->visible(fn (): bool => $this->problems !== []),
@@ -134,7 +141,7 @@ class CalendarPreview extends Page implements HasTable
 
         if ($from->diffInDays($to) > self::MAX_RANGE_DAYS) {
             throw ValidationException::withMessages([
-                'data.to' => 'Il periodo massimo è di '.self::MAX_RANGE_DAYS.' giorni.',
+                'data.to' => __('The maximum range is :count days.', ['count' => self::MAX_RANGE_DAYS]),
             ]);
         }
 
@@ -146,7 +153,7 @@ class CalendarPreview extends Page implements HasTable
             [$this->events, $this->problems, $this->loaded] = [[], [], false];
 
             Notification::make()
-                ->title('Lettura non riuscita')
+                ->title(__('Reading failed'))
                 ->body($e->getMessage())
                 ->danger()
                 ->send();
@@ -170,19 +177,19 @@ class CalendarPreview extends Page implements HasTable
             ->records(fn (int $page, int|string $recordsPerPage, ?string $search): LengthAwarePaginator => $this->paginateEvents($page, $recordsPerPage, $search))
             ->columns([
                 TextColumn::make('when')
-                    ->label('Quando'),
+                    ->label(__('When')),
                 TextColumn::make('title')
-                    ->label('Titolo')
+                    ->label(__('Title'))
                     ->searchable()
                     ->description(fn (array $record): ?string => $record['location'])
                     ->wrap(),
                 TextColumn::make('status')
-                    ->label('Stato')
+                    ->label(__('Status'))
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => EventStatus::from($state)->getLabel())
                     ->color(fn (string $state): string => EventStatus::from($state)->getColor()),
                 TextColumn::make('flags')
-                    ->label('Note')
+                    ->label(__('Notes'))
                     ->badge()
                     ->color('gray'),
                 TextColumn::make('timezone')
@@ -200,7 +207,7 @@ class CalendarPreview extends Page implements HasTable
             ])
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(50)
-            ->emptyStateHeading('Nessun evento nel periodo');
+            ->emptyStateHeading(__('No events in this range'));
     }
 
     /**
@@ -218,24 +225,24 @@ class CalendarPreview extends Page implements HasTable
     {
         if ($event->allDay) {
             $lastDay = $event->end->subDay();
-            $when = $event->start->format('d/m/Y').($lastDay->isSameDay($event->start) ? '' : ' → '.$lastDay->format('d/m/Y'));
+            $when = $event->start->format(DateFormat::date()).($lastDay->isSameDay($event->start) ? '' : ' → '.$lastDay->format(DateFormat::date()));
         } else {
             $start = $event->start->setTimezone($timezone);
             $end = $event->end->setTimezone($timezone);
-            $when = $start->format('d/m/Y H:i').' → '.($end->isSameDay($start) ? $end->format('H:i') : $end->format('d/m/Y H:i'));
+            $when = $start->format(DateFormat::dateTime()).' → '.($end->isSameDay($start) ? $end->format('H:i') : $end->format(DateFormat::dateTime()));
         }
 
         return [
             ArrayRecord::getKeyName() => (string) $index,
             'when' => $when,
-            'title' => $event->title !== '' ? $event->title : '(senza titolo)',
+            'title' => $event->title !== '' ? $event->title : __('(no title)'),
             'location' => $event->location,
             'status' => $event->status->value,
             'flags' => array_values(array_filter([
-                $event->allDay ? 'tutto il giorno' : null,
-                $event->recurrenceId !== null ? 'ricorrente' : null,
-                $event->transparent ? 'libero' : null,
-                $event->isMarked() ? 'creato da calendar-sync' : null,
+                $event->allDay ? __('all day') : null,
+                $event->recurrenceId !== null ? __('recurring') : null,
+                $event->transparent ? __('free') : null,
+                $event->isMarked() ? __('created by calendar-sync') : null,
                 ! $event->allDay && $event->timezone !== $timezone ? $event->timezone : null,
             ])),
             'timezone' => $event->timezone,

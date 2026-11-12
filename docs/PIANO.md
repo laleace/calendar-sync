@@ -2,7 +2,7 @@
 
 > Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9, 10 e 11; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
-> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12.
+> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12, 13.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -335,7 +335,7 @@ Idempotenza:
   - `APP_KEY` generata sul server, mai nel repo.
 
 ### 5.9 Lingua e timezone
-- La GUI è in italiano (`APP_LOCALE=it`; Filament include le traduzioni).
+- La GUI è in italiano o in inglese, scelta con `APP_LOCALE` (default `it`; Filament include le traduzioni). Dallo step 13 i testi stanno in `lang/it.json` (§9.3).
 - Codice e commenti sono in inglese, la documentazione operativa in italiano.
 - Il DB è in UTC. La GUI e la finestra di sync usano `Europe/Rome`, configurabile.
 
@@ -523,3 +523,13 @@ Idempotenza:
   - La guida di deploy clona dal repository pubblico via HTTPS; la deploy key resta per i repository privati. Hostname e IP reali sostituiti da esempi (`calsync.miodominio.it`, `192.168.1.50`, `192.168.1.51`). Le installazioni esistenti non cambiano: `update.sh` è invariato e il `.env` di produzione non è toccato.
   - `SECURITY.md` in inglese: segnalazioni tramite il private vulnerability reporting di GitHub, da attivare allo step 17.
   - `composer audit` segnala 11 advisory su 6 pacchetti (Livewire 4.4.7 e componenti Symfony). Da aggiornare con un `composer update` prima della pubblicazione.
+- **Step 13.**
+  - Chiavi in inglese nel codice (`__('Run now')`) e traduzione italiana in `lang/it.json`, 408 voci. L'inglese non ha un file: è il testo stesso della chiave. Una nuova lingua è un nuovo `lang/xx.json`.
+  - Le frasi con parti variabili usano i placeholder (`:name`, `:count`), le forme singolare e plurale `trans_choice`. Le etichette statiche di Filament (`$modelLabel`, `$navigationLabel`, `$title`) sono diventate metodi, perché le proprietà non possono chiamare `__()`; per lo stesso motivo `SyncJobForm::INTERVALS` e `PlanFormatter::OPERATIONS` sono metodi.
+  - Tradotti anche i messaggi d'errore dei provider, gli stati degli account e i motivi delle operazioni. Finiscono nel database (`status_message`, `sync_runs.errors`, `plan`) nella lingua attiva al momento: cambiando lingua, quelli già salvati restano come sono.
+  - Tradotti anche i comandi da terminale; le descrizioni dei comandi erano già in inglese.
+  - Date: `App\Support\DateFormat` usa `d/m/Y` in italiano e il formato ISO (`Y-m-d`) nelle altre lingue. I giorni della settimana dei filtri vengono da Carbon (lun… / Mon…).
+  - `busy_title` predefinito nella lingua attiva ("Occupato" / "Busy"), impostato nel costruttore del modello. I job esistenti mantengono il titolo salvato.
+  - Test: `phpunit.xml` fissa `APP_LOCALE=it`, così i test esistenti non dipendono dal `.env`. I test unitari ora avviano l'app, che serve per il traduttore. `TranslationsTest` controlla che ogni chiave usata nel codice sia tradotta, che non restino traduzioni inutilizzate, che placeholder e forme plurali coincidano, e che il pannello si mostri in entrambe le lingue.
+  - Verifica visiva del pannello in inglese con un database temporaneo: dashboard, job, form, storico, account, gruppi, dry-run, anteprima eventi e privacy.
+  - Non tradotti: i messaggi di validazione standard di Laravel (es. "campo obbligatorio") restano in inglese in entrambe le lingue, come prima dello step 13.

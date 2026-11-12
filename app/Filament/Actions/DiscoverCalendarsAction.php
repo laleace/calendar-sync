@@ -23,7 +23,7 @@ class DiscoverCalendarsAction extends Action
     {
         parent::setUp();
 
-        $this->label('Scopri calendari')
+        $this->label(__('Discover calendars'))
             ->icon(Heroicon::OutlinedArrowPath)
             ->color('gray')
             ->action(function (Action $action, AccountService $accounts): void {
@@ -46,7 +46,7 @@ class DiscoverCalendarsAction extends Action
             $summary = $accounts->discoverCalendars($account);
         } catch (ProviderException $e) {
             Notification::make()
-                ->title('Scoperta calendari non riuscita')
+                ->title(__('Calendar discovery failed'))
                 ->body($e->getMessage())
                 ->danger()
                 ->send();
@@ -55,14 +55,13 @@ class DiscoverCalendarsAction extends Action
         }
 
         Notification::make()
-            ->title('Calendari aggiornati')
-            ->body(sprintf(
-                'Trovati %d calendari: %d nuovi, %d aggiornati, %d non più presenti.',
-                $summary->calendars->count(),
-                $summary->created,
-                $summary->updated,
-                $summary->missing->count(),
-            ))
+            ->title(__('Calendars updated'))
+            ->body(__('Found :count calendars: :created new, :updated updated, :missing no longer present.', [
+                'count' => $summary->calendars->count(),
+                'created' => $summary->created,
+                'updated' => $summary->updated,
+                'missing' => $summary->missing->count(),
+            ]))
             ->success()
             ->send();
 

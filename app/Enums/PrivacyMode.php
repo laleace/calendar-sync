@@ -12,8 +12,8 @@ enum PrivacyMode: string implements HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::Full => 'Completa (tutti i campi)',
-            self::BusyOnly => 'Solo "Occupato"',
+            self::Full => __('Full (all fields)'),
+            self::BusyOnly => __('"Busy" only'),
         };
     }
 }

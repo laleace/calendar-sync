@@ -14,12 +14,11 @@ class LatestRuns extends TableWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    protected static ?string $heading = 'Ultimi run';
-
     public function table(Table $table): Table
     {
         return SyncRunsTable::configure($table)
             ->query(fn (): Builder => SyncRun::query()->latest('id')->limit(10))
+            ->heading(__('Latest runs'))
             ->filters([])
             ->paginated(false);
     }

@@ -21,7 +21,7 @@ final class HttpExchangeFormatter
             $request->method(),
             $request->url(),
             $depth !== null ? " (Depth: {$depth})" : '',
-            $response?->status() ?? 'nessuna risposta',
+            $response?->status() ?? 'no response',
         ));
     }
 

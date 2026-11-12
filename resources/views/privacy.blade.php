@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,14 +11,14 @@
     </style>
 </head>
 <body>
-    <h1>Informativa sulla privacy</h1>
+    <h1>{{ __('Privacy policy') }}</h1>
 
-    <p>{{ config('app.name') }} è un'installazione privata di calendar-sync, un software open source che sincronizza calendari Google, iCloud e CalDAV. È gestita da chi amministra il dominio {{ request()->getHost() }}, e solo chi accede a questo pannello può collegare i propri account.</p>
+    <p>{{ __(':app is a private installation of calendar-sync, open source software that syncs Google, iCloud and CalDAV calendars. It is run by whoever manages the domain :host, and only those who can sign in to this panel can connect their accounts.', ['app' => config('app.name'), 'host' => request()->getHost()]) }}</p>
 
-    <p>L'applicazione accede ai calendari collegati solo per copiare gli eventi tra di essi, secondo le regole impostate nel pannello. I dati restano su questo server: non vengono condivisi con terzi, venduti o usati per altri scopi, e non vengono inviati agli autori del software.</p>
+    <p>{{ __('The application accesses the connected calendars only to copy events between them, following the rules set in the panel. The data stays on this server: it is not shared with third parties, sold or used for other purposes, and it is not sent to the authors of the software.') }}</p>
 
-    <p>Le credenziali e i token di accesso sono conservati cifrati. L'accesso a Google si può revocare in qualsiasi momento da <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
+    <p>{{ __('Credentials and access tokens are stored encrypted. Access to Google can be revoked at any time from') }} <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
 
-    <p>Codice sorgente: <a href="{{ config('calsync.source_url') }}">{{ config('calsync.source_url') }}</a> (licenza AGPL-3.0).</p>
+    <p>{{ __('Source code:') }} <a href="{{ config('calsync.source_url') }}">{{ config('calsync.source_url') }}</a> ({{ __('AGPL-3.0 license') }}).</p>
 </body>
 </html>

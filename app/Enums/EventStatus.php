@@ -14,9 +14,9 @@ enum EventStatus: string implements HasColor, HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::Confirmed => 'Confermato',
-            self::Tentative => 'Provvisorio',
-            self::Cancelled => 'Annullato',
+            self::Confirmed => __('Confirmed'),
+            self::Tentative => __('Tentative'),
+            self::Cancelled => __('Cancelled'),
         };
     }
 

@@ -16,7 +16,7 @@ class DeleteAccountAction extends DeleteAction
 
         $this->disabled(fn (Account $record): bool => $record->isInUse())
             ->tooltip(fn (Account $record): ?string => $record->isInUse()
-                ? 'I calendari di questo account sono usati da un job di sincronizzazione.'
+                ? __('This account\'s calendars are used by a sync job.')
                 : null)
             ->before(function (Account $record, DeleteAction $action): void {
                 if ($record->isInUse()) {

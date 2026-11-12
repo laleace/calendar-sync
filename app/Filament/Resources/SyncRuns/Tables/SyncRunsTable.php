@@ -6,6 +6,7 @@ use App\Enums\SyncRunStatus;
 use App\Filament\Resources\SyncRuns\SyncRunResource;
 use App\Filament\Support\GroupFields;
 use App\Models\SyncRun;
+use App\Support\DateFormat;
 use Filament\Actions\Action;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -28,38 +29,38 @@ class SyncRunsTable
                     ->label('Job')
                     ->visible($showJob),
                 TextColumn::make('kind')
-                    ->label('Tipo')
+                    ->label(__('Type'))
                     ->state(fn (SyncRun $record): string => $record->kindLabel())
                     ->badge()
                     ->color('gray'),
                 TextColumn::make('triggered_by')
-                    ->label('Avviato da')
+                    ->label(__('Started by'))
                     ->badge(),
                 TextColumn::make('status')
-                    ->label('Stato')
+                    ->label(__('Status'))
                     ->badge(),
                 TextColumn::make('summary')
-                    ->label('Copie')
+                    ->label(__('Copies'))
                     ->state(fn (SyncRun $record): string => sprintf('+%d  ~%d  −%d', $record->created_count, $record->updated_count, $record->deleted_count))
-                    ->tooltip('create · aggiornate · eliminate'),
+                    ->tooltip(__('created · updated · deleted')),
                 TextColumn::make('error_count')
-                    ->label('Errori')
+                    ->label(__('Errors'))
                     ->numeric()
                     ->color(fn (int $state): ?string => $state > 0 ? 'danger' : null),
                 TextColumn::make('created_at')
-                    ->label('Avviato')
+                    ->label(__('Started'))
                     ->since()
-                    ->dateTimeTooltip('d/m/Y H:i:s')
+                    ->dateTimeTooltip(DateFormat::dateTimeWithSeconds())
                     ->sortable(),
                 TextColumn::make('duration')
-                    ->label('Durata')
+                    ->label(__('Duration'))
                     ->state(fn (SyncRun $record): ?string => $record->durationForHumans())
                     ->placeholder('—'),
             ])
             ->defaultSort('id', 'desc')
             ->filters([
                 SelectFilter::make('status')
-                    ->label('Stato')
+                    ->label(__('Status'))
                     ->options(SyncRunStatus::class),
                 GroupFields::filter(through: 'syncJob')
                     ->visible($showJob),
@@ -68,8 +69,8 @@ class SyncRunsTable
                     ->relationship('syncJob', 'name')
                     ->visible($showJob),
                 SelectFilter::make('kind')
-                    ->label('Tipo')
-                    ->options(['sync' => 'Sync', 'dry_run' => 'Dry-run', 'purge' => 'Rimozione copie'])
+                    ->label(__('Type'))
+                    ->options(['sync' => 'Sync', 'dry_run' => 'Dry-run', 'purge' => __('Copy removal')])
                     ->query(fn (Builder $query, array $data) => match ($data['value'] ?? null) {
                         'sync' => $query->where('dry_run', false)->where('purge', false),
                         'dry_run' => $query->where('dry_run', true),
@@ -81,11 +82,11 @@ class SyncRunsTable
             ->recordActions([
                 // A plain link: works the same in the resource and in the job relation manager.
                 Action::make('open')
-                    ->label('Dettagli')
+                    ->label(__('Details'))
                     ->icon(Heroicon::OutlinedEye)
                     ->url(fn (SyncRun $record): string => SyncRunResource::getUrl('view', ['record' => $record])),
             ])
-            ->emptyStateHeading('Nessun run')
-            ->emptyStateDescription('I run compaiono qui dopo un dry-run, un "Esegui ora" o un sync pianificato.');
+            ->emptyStateHeading(__('No runs'))
+            ->emptyStateDescription(__('Runs appear here after a dry-run, a "Run now" or a scheduled sync.'));
     }
 }

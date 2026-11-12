@@ -45,7 +45,7 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
             return ConnectionResult::failed($e->accountStatus(), $e->getMessage());
         }
 
-        return ConnectionResult::ok("Connessione riuscita. Principal: {$principal}");
+        return ConnectionResult::ok(__('Connection successful. Principal: :principal', ['principal' => $principal]));
     }
 
     public function discoverCalendars(Account $account): DiscoveryResult
@@ -71,7 +71,7 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
             $ics = $response->text(Ns::CALDAV, 'calendar-data');
 
             if ($ics === null) {
-                $list = $list->merge(new EventList(problems: ['Risorsa '.rawurldecode(basename((new Uri($url))->getPath())).' senza calendar-data.']));
+                $list = $list->merge(new EventList(problems: [__('Resource :resource without calendar-data.', ['resource' => rawurldecode(basename((new Uri($url))->getPath()))])]));
 
                 continue;
             }
@@ -99,7 +99,7 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
             $jobId = $event->markers['job'] ?? null;
 
             if (! $existing->successful() || $jobId === null || $this->mapper->jobMarker($existing->body()) !== $jobId) {
-                throw new ProviderException('Sul calendario esiste già una risorsa '.basename($url).' non creata da questo job.');
+                throw new ProviderException(__('The calendar already has a resource :resource not created by this job.', ['resource' => basename($url)]));
             }
 
             [$finalUrl, $response] = $client->request('PUT', $url, $ics, [], self::ICS_CONTENT_TYPE);
@@ -152,9 +152,9 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
         $resource = basename((new Uri($url))->getPath());
 
         return match ($response->status()) {
-            401 => new AuthenticationFailed('Credenziali rifiutate dal server (HTTP 401) durante la scrittura.'),
-            403 => new ProviderException("Scrittura negata (HTTP 403) su {$resource}: il calendario potrebbe essere in sola lettura."),
-            default => new ProviderException("Scrittura di {$resource} non riuscita (HTTP {$response->status()})."),
+            401 => new AuthenticationFailed(__('Credentials rejected by the server (HTTP 401) while writing.')),
+            403 => new ProviderException(__('Write denied (HTTP 403) on :resource: the calendar may be read-only.', ['resource' => $resource])),
+            default => new ProviderException(__('Writing :resource failed (HTTP :status).', ['resource' => $resource, 'status' => $response->status()])),
         };
     }
 
@@ -170,14 +170,14 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
     private function client(Account $account): CalDavClient
     {
         if ($account->hasUnreadableCredentials()) {
-            throw new AuthenticationFailed('Le credenziali salvate non si possono decifrare: la APP_KEY è cambiata da quando sono state inserite. Reinserisci la password dell\'account.');
+            throw new AuthenticationFailed(__('The saved credentials cannot be decrypted: APP_KEY has changed since they were entered. Enter the account password again.'));
         }
 
         $username = $account->credential('username');
         $password = $account->credential('password');
 
         if (! is_string($username) || $username === '' || ! is_string($password) || $password === '') {
-            throw new AuthenticationFailed('Username o password non impostati per questo account.');
+            throw new AuthenticationFailed(__('Username or password not set for this account.'));
         }
 
         return new CalDavClient($username, $password, $this->hostPolicy($account));
@@ -190,7 +190,7 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
         }
 
         if (blank($account->base_url)) {
-            throw new ProviderException('URL del server CalDAV non impostato.');
+            throw new ProviderException(__('CalDAV server URL not set.'));
         }
 
         return $account->base_url;
@@ -230,7 +230,7 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
         }
 
         throw new ProviderException(
-            'Il server non indica il principal CalDAV (current-user-principal).'.($lastError ? ' Ultimo errore: '.$lastError->getMessage() : ''),
+            __('The server does not report the CalDAV principal (current-user-principal).').($lastError ? ' '.__('Last error: :error', ['error' => $lastError->getMessage()]) : ''),
         );
     }
 
@@ -240,7 +240,7 @@ final class CalDavProvider implements CalendarProvider, WritableCalendarProvider
         $href = $multistatus->self()?->href(Ns::CALDAV, 'calendar-home-set');
 
         if ($href === null) {
-            throw new ProviderException('Il server non indica la calendar home (calendar-home-set).');
+            throw new ProviderException(__('The server does not report the calendar home (calendar-home-set).'));
         }
 
         return $multistatus->resolve($href);

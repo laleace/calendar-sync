@@ -63,7 +63,7 @@ class DryRunSyncJob extends Page implements HasTable
     {
         return [
             Action::make('repeat')
-                ->label('Ripeti dry-run')
+                ->label(__('Repeat dry-run'))
                 ->icon(Heroicon::OutlinedArrowPath)
                 ->color('gray')
                 ->action(function (SyncService $sync): void {
@@ -84,32 +84,32 @@ class DryRunSyncJob extends Page implements HasTable
             ->records(fn (int $page, int|string $recordsPerPage, array $filters): LengthAwarePaginator => $this->paginatePlan($page, $recordsPerPage, $filters['op']['value'] ?? null))
             ->columns([
                 TextColumn::make('op')
-                    ->label('Operazione')
+                    ->label(__('Operation'))
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => PlanFormatter::operationLabel($state))
                     ->color(fn (string $state): string => PlanFormatter::operationColor($state)),
                 TextColumn::make('when')
-                    ->label('Quando'),
+                    ->label(__('When')),
                 TextColumn::make('title')
-                    ->label('Titolo della copia')
+                    ->label(__('Copy title'))
                     ->wrap(),
                 TextColumn::make('source')
-                    ->label('Sorgente')
+                    ->label(__('Source'))
                     ->placeholder('—'),
                 TextColumn::make('reason')
-                    ->label('Motivo')
+                    ->label(__('Reason'))
                     ->placeholder('—')
                     ->wrap(),
             ])
             ->filters([
                 SelectFilter::make('op')
-                    ->label('Operazione')
-                    ->options(collect(PlanFormatter::OPERATIONS)->except('read')->map(fn (array $op) => $op[0])->all()),
+                    ->label(__('Operation'))
+                    ->options(collect(PlanFormatter::operations())->except('read')->all()),
             ])
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(50)
-            ->emptyStateHeading('Niente da fare')
-            ->emptyStateDescription('Il calendario di destinazione è già allineato.');
+            ->emptyStateHeading(__('Nothing to do'))
+            ->emptyStateDescription(__('The target calendar is already up to date.'));
     }
 
     private function paginatePlan(int $page, int|string $perPage, ?string $operation): LengthAwarePaginator

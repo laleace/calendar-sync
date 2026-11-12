@@ -25,10 +25,10 @@ final class EventTransformer
     {
         return match (true) {
             // Copies made by any job: never a source (prevents loops and chains).
-            $event->isMarked() => 'creato da calendar-sync',
+            $event->isMarked() => __('created by calendar-sync'),
             $event->status === EventStatus::Cancelled => 'annullato',
-            $event->declined => 'invito rifiutato',
-            $job->privacy_mode === PrivacyMode::BusyOnly && $event->transparent => 'segnato come libero',
+            $event->declined => __('invitation declined'),
+            $job->privacy_mode === PrivacyMode::BusyOnly && $event->transparent => __('marked as free'),
             default => null,
         };
     }

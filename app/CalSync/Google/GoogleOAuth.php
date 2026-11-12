@@ -54,7 +54,7 @@ final class GoogleOAuth
     public function exchange(string $code, #[\SensitiveParameter] string $verifier): array
     {
         if ($code === '') {
-            throw new ProviderException('Google non ha restituito il codice di autorizzazione.');
+            throw new ProviderException(__('Google did not return the authorization code.'));
         }
 
         $client = $this->clients->make();
@@ -66,16 +66,16 @@ final class GoogleOAuth
         }
 
         if (! isset($token['access_token']) || isset($token['error'])) {
-            throw new ProviderException('Google ha rifiutato il codice di autorizzazione: '.SecretRedactor::redact((string) ($token['error_description'] ?? $token['error'] ?? 'risposta inattesa')));
+            throw new ProviderException(__('Google rejected the authorization code: :error', ['error' => SecretRedactor::redact((string) ($token['error_description'] ?? $token['error'] ?? __('unexpected response')))]));
         }
 
         // With granular consent the user can untick the calendar permission.
         if (! in_array(GoogleClientFactory::SCOPE, explode(' ', (string) ($token['scope'] ?? '')), true)) {
-            throw new ProviderException('Permesso di accesso al calendario non concesso: ripeti il collegamento lasciando selezionata la casella del calendario.');
+            throw new ProviderException(__('Calendar access was not granted: connect again and leave the calendar box ticked.'));
         }
 
         if (blank($token['refresh_token'] ?? null)) {
-            throw new ProviderException('Google non ha restituito un refresh token: ripeti il collegamento.');
+            throw new ProviderException(__('Google did not return a refresh token: connect again.'));
         }
 
         try {

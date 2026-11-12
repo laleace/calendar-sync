@@ -7,6 +7,10 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+// Unit tests need the app only for the translator: user-facing messages go through __().
+pest()->extend(TestCase::class)
+    ->in('Unit');
+
 /**
  * A configured Google OAuth client whose redirect URI matches the test host.
  */

@@ -19,14 +19,14 @@ class TestConnectionAction extends Action
     {
         parent::setUp();
 
-        $this->label('Test connessione')
+        $this->label(__('Test connection'))
             ->icon(Heroicon::OutlinedSignal)
             ->color('gray')
             ->action(function (Account $record, AccountService $accounts): void {
                 $result = $accounts->testConnection($record);
 
                 Notification::make()
-                    ->title($result->successful() ? 'Connessione riuscita' : 'Connessione non riuscita')
+                    ->title($result->successful() ? __('Connection successful') : __('Connection failed'))
                     ->body($result->message)
                     ->status($result->successful() ? 'success' : 'danger')
                     ->send();

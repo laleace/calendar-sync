@@ -21,7 +21,7 @@ class ConnectGoogleAction extends Action
     {
         parent::setUp();
 
-        $this->label(fn (Account $record): string => filled($record->credential('refresh_token')) ? 'Riconnetti Google' : 'Connetti con Google')
+        $this->label(fn (Account $record): string => filled($record->credential('refresh_token')) ? __('Reconnect Google') : __('Connect with Google'))
             ->icon(Heroicon::OutlinedLink)
             ->color('primary')
             ->visible(fn (Account $record): bool => $record->type === AccountType::Google)

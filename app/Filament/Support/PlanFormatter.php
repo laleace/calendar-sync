@@ -2,6 +2,7 @@
 
 namespace App\Filament\Support;
 
+use App\Support\DateFormat;
 use Carbon\CarbonImmutable;
 
 /**
@@ -9,22 +10,38 @@ use Carbon\CarbonImmutable;
  */
 final class PlanFormatter
 {
-    public const OPERATIONS = [
-        'create' => ['Crea', 'success'],
-        'update' => ['Aggiorna', 'info'],
-        'delete' => ['Elimina', 'danger'],
-        'skip' => ['Salta', 'gray'],
-        'read' => ['Lettura', 'warning'],
+    private const COLORS = [
+        'create' => 'success',
+        'update' => 'info',
+        'delete' => 'danger',
+        'skip' => 'gray',
+        'read' => 'warning',
     ];
+
+    /**
+     * Labels of the operations a plan can contain ("read" only appears among errors).
+     *
+     * @return array<string, string>
+     */
+    public static function operations(): array
+    {
+        return [
+            'create' => __('Create'),
+            'update' => __('Update'),
+            'delete' => __('Delete'),
+            'skip' => __('Skip'),
+            'read' => __('Read'),
+        ];
+    }
 
     public static function operationLabel(?string $operation): string
     {
-        return self::OPERATIONS[$operation][0] ?? (string) $operation;
+        return self::operations()[$operation] ?? (string) $operation;
     }
 
     public static function operationColor(?string $operation): string
     {
-        return self::OPERATIONS[$operation][1] ?? 'gray';
+        return self::COLORS[$operation] ?? 'gray';
     }
 
     /**
@@ -42,18 +59,18 @@ final class PlanFormatter
             $start = CarbonImmutable::parse($entry['start']);
             $last = filled($entry['end'] ?? null) ? CarbonImmutable::parse($entry['end'])->subDay() : $start;
 
-            return $start->format('d/m/Y').($last->isSameDay($start) ? '' : ' → '.$last->format('d/m/Y'));
+            return $start->format(DateFormat::date()).($last->isSameDay($start) ? '' : ' → '.$last->format(DateFormat::date()));
         }
 
         $timezone = config('calsync.timezone');
         $start = CarbonImmutable::parse($entry['start'])->setTimezone($timezone);
 
         if (blank($entry['end'] ?? null)) {
-            return $start->format('d/m/Y H:i');
+            return $start->format(DateFormat::dateTime());
         }
 
         $end = CarbonImmutable::parse($entry['end'])->setTimezone($timezone);
 
-        return $start->format('d/m/Y H:i').' → '.($end->isSameDay($start) ? $end->format('H:i') : $end->format('d/m/Y H:i'));
+        return $start->format(DateFormat::dateTime()).' → '.($end->isSameDay($start) ? $end->format('H:i') : $end->format(DateFormat::dateTime()));
     }
 }

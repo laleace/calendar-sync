@@ -16,11 +16,11 @@ enum AccountStatus: string implements HasColor, HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::Unknown => 'Non verificato',
+            self::Unknown => __('Not verified'),
             self::Ok => 'OK',
-            self::AuthFailed => 'Credenziali non valide',
-            self::TokenExpired => 'Token scaduto',
-            self::Error => 'Errore',
+            self::AuthFailed => __('Invalid credentials'),
+            self::TokenExpired => __('Token expired'),
+            self::Error => __('Error'),
         };
     }
 

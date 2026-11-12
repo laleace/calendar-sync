@@ -50,11 +50,11 @@ final class ICalendarMapper
         try {
             $vcalendar = Reader::read($ics, Reader::OPTION_FORGIVING);
         } catch (Throwable $e) {
-            return new EventList(problems: ["Risorsa {$resource} non leggibile: {$e->getMessage()}"]);
+            return new EventList(problems: [__('Resource :resource cannot be read: :error', ['resource' => $resource, 'error' => $e->getMessage()])]);
         }
 
         if (! $vcalendar instanceof VCalendar) {
-            return new EventList(problems: ["Risorsa {$resource} non leggibile: non è un VCALENDAR."]);
+            return new EventList(problems: [__('Resource :resource cannot be read: not a VCALENDAR.', ['resource' => $resource])]);
         }
 
         $events = [];
@@ -66,9 +66,9 @@ final class ICalendarMapper
                     $events[] = $this->toDto((string) $uid, $vevent, $start, $end, $defaultTimezone, $remoteId, $etag);
                 }
             } catch (MaxInstancesExceededException) {
-                $problems[] = "Evento {$uid} ({$resource}): troppe ricorrenze da espandere.";
+                $problems[] = __('Event :uid (:resource): too many recurrences to expand.', ['uid' => $uid, 'resource' => $resource]);
             } catch (Throwable $e) {
-                $problems[] = "Evento {$uid} ({$resource}) non leggibile: {$e->getMessage()}";
+                $problems[] = __('Event :uid (:resource) cannot be read: :error', ['uid' => $uid, 'resource' => $resource, 'error' => $e->getMessage()]);
             }
         }
 

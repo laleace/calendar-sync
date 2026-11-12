@@ -31,10 +31,19 @@ class SyncJob extends Model
         'range_future_days' => 60,
         'interval_minutes' => 15,
         'privacy_mode' => 'full',
-        'busy_title' => 'Occupato',
         'allow_duplicates' => false,
         'skip_existing_in_target' => false,
     ];
+
+    /**
+     * The default busy title depends on the app locale, so it cannot live in $attributes.
+     */
+    public function __construct(array $attributes = [])
+    {
+        $this->attributes['busy_title'] = __('Busy');
+
+        parent::__construct($attributes);
+    }
 
     /**
      * Get the attributes that should be cast.

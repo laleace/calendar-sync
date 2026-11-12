@@ -11,9 +11,9 @@ enum OperationType: string
     public function label(): string
     {
         return match ($this) {
-            self::Create => 'Crea',
-            self::Update => 'Aggiorna',
-            self::Delete => 'Elimina',
+            self::Create => __('Create'),
+            self::Update => __('Update'),
+            self::Delete => __('Delete'),
         };
     }
 }

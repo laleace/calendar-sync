@@ -21,7 +21,17 @@ use Carbon\CarbonImmutable;
  */
 final readonly class FilterRule
 {
-    public const WEEKDAYS = [1 => 'lun', 2 => 'mar', 3 => 'mer', 4 => 'gio', 5 => 'ven', 6 => 'sab', 7 => 'dom'];
+    /**
+     * ISO day number => short name in the app locale (lun, mar… / Mon, Tue…).
+     *
+     * @return array<int, string>
+     */
+    public static function weekdays(): array
+    {
+        $monday = CarbonImmutable::create(2024, 1, 1)->locale(app()->getLocale());
+
+        return collect(range(1, 7))->mapWithKeys(fn (int $day) => [$day => $monday->addDays($day - 1)->shortDayName])->all();
+    }
 
     /**
      * @param  list<int>  $weekdays
@@ -105,12 +115,13 @@ final readonly class FilterRule
     public function describe(): string
     {
         $label = $this->field->getLabel();
+        $weekdays = self::weekdays();
 
         return match (true) {
-            $this->operator === TextOperator::Regex => "{$label} corrisponde a /{$this->value}/",
-            $this->operator !== null => "{$label} {$this->operator->getLabel()} «{$this->value}»",
-            $this->field === FilterField::Weekday => 'Giorno: '.implode(', ', array_map(fn (int $day) => self::WEEKDAYS[$day], $this->weekdays)),
-            $this->field === FilterField::StartTime => 'Inizia tra '.self::clock($this->fromMinute).' e '.self::clock($this->toMinute),
+            $this->operator === TextOperator::Regex => __(':field matches /:pattern/', ['field' => $label, 'pattern' => $this->value]),
+            $this->operator !== null => __(':field :operator ":value"', ['field' => $label, 'operator' => $this->operator->getLabel(), 'value' => $this->value]),
+            $this->field === FilterField::Weekday => __('Day: :days', ['days' => implode(', ', array_map(fn (int $day) => $weekdays[$day], $this->weekdays))]),
+            $this->field === FilterField::StartTime => __('Starts between :from and :to', ['from' => self::clock($this->fromMinute), 'to' => self::clock($this->toMinute)]),
             default => $label,
         };
     }
@@ -137,7 +148,7 @@ final readonly class FilterRule
     {
         $days = collect(is_array($data['weekdays'] ?? null) ? $data['weekdays'] : [])
             ->map(fn ($day) => (int) self::scalar($day))
-            ->filter(fn (int $day) => isset(self::WEEKDAYS[$day]))
+            ->filter(fn (int $day) => $day >= 1 && $day <= 7)
             ->unique()
             ->sort()
             ->values()

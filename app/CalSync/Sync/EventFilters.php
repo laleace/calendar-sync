@@ -63,7 +63,7 @@ final readonly class EventFilters
     {
         foreach ($this->exclude as $rule) {
             if ($rule->matches($event, $this->timezone)) {
-                return 'escluso dal filtro: '.$rule->describe();
+                return __('excluded by filter: :rule', ['rule' => $rule->describe()]);
             }
         }
 
@@ -74,7 +74,7 @@ final readonly class EventFilters
         if ($this->matchAll) {
             foreach ($this->include as $rule) {
                 if (! $rule->matches($event, $this->timezone)) {
-                    return 'non soddisfa il filtro: '.$rule->describe();
+                    return __('does not match filter: :rule', ['rule' => $rule->describe()]);
                 }
             }
 
@@ -88,8 +88,8 @@ final readonly class EventFilters
         }
 
         return count($this->include) === 1
-            ? 'non soddisfa il filtro: '.$this->include[0]->describe()
-            : 'non soddisfa nessuno dei filtri di inclusione';
+            ? __('does not match filter: :rule', ['rule' => $this->include[0]->describe()])
+            : __('matches none of the include filters');
     }
 
     /**

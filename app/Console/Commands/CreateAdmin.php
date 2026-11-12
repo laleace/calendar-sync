@@ -22,7 +22,7 @@ class CreateAdmin extends Command
         $email = $this->option('email') ?: text(label: 'Email', required: true);
 
         if (Validator::make(['email' => $email], ['email' => 'email'])->fails()) {
-            $this->components->error('Email non valida.');
+            $this->components->error(__('Invalid email.'));
 
             return self::FAILURE;
         }
@@ -30,21 +30,21 @@ class CreateAdmin extends Command
         $user = User::where('email', $email)->first();
 
         if ($user === null && User::exists()) {
-            $this->components->error('Esiste già un amministratore. Questa app supporta un solo utente: usa la sua email per reimpostare la password.');
+            $this->components->error(__('An administrator already exists. This app supports a single user: use their email to reset the password.'));
 
             return self::FAILURE;
         }
 
-        if ($user !== null && ! confirm("L'utente {$email} esiste già. Reimpostare la password?", default: false)) {
-            $this->components->info('Nessuna modifica.');
+        if ($user !== null && ! confirm(__('The user :email already exists. Reset the password?', ['email' => $email]), default: false)) {
+            $this->components->info(__('Nothing changed.'));
 
             return self::SUCCESS;
         }
 
-        $name = $user?->name ?? ($this->option('name') ?: text(label: 'Nome', default: 'Admin', required: true));
+        $name = $user?->name ?? ($this->option('name') ?: text(label: __('Name'), default: 'Admin', required: true));
 
-        $password = password(label: 'Password (min. 12 caratteri)', required: true);
-        $confirmation = password(label: 'Conferma password', required: true);
+        $password = password(label: __('Password (at least 12 characters)'), required: true);
+        $confirmation = password(label: __('Confirm password'), required: true);
 
         $validator = Validator::make(
             ['password' => $password, 'password_confirmation' => $confirmation],
@@ -61,10 +61,10 @@ class CreateAdmin extends Command
 
         if ($user === null) {
             User::create(['name' => $name, 'email' => $email, 'password' => $password]);
-            $this->components->info("Amministratore {$email} creato.");
+            $this->components->info(__('Administrator :email created.', ['email' => $email]));
         } else {
             $user->update(['password' => $password]);
-            $this->components->info("Password di {$email} aggiornata.");
+            $this->components->info(__('Password of :email updated.', ['email' => $email]));
         }
 
         return self::SUCCESS;

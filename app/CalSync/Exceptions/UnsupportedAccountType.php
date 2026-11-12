@@ -8,11 +8,11 @@ class UnsupportedAccountType extends ProviderException
 {
     public static function for(AccountType $type): self
     {
-        return new self("Nessun provider disponibile per il tipo di account \"{$type->getLabel()}\".");
+        return new self(__('No provider available for the account type ":type".', ['type' => $type->getLabel()]));
     }
 
     public static function forWriting(AccountType $type): self
     {
-        return new self("La scrittura di eventi non è ancora disponibile per gli account \"{$type->getLabel()}\".");
+        return new self(__('Writing events is not available yet for ":type" accounts.', ['type' => $type->getLabel()]));
     }
 }

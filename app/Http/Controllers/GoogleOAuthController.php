@@ -30,7 +30,7 @@ class GoogleOAuthController extends Controller
         $back = AccountResource::getUrl('view', ['record' => $account]);
 
         if (! $oauth->isConfigured()) {
-            return $this->fail($back, 'Google non configurato', 'Imposta GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET nel file .env (vedi docs/google-oauth.md).');
+            return $this->fail($back, __('Google not configured'), __('Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the .env file (see docs/google-oauth.md).'));
         }
 
         // The session cookie is bound to the host: coming back on another host (127.0.0.1 vs
@@ -38,7 +38,7 @@ class GoogleOAuthController extends Controller
         $callbackOrigin = self::origin($oauth->redirectUri());
 
         if ($callbackOrigin !== self::origin($request->getSchemeAndHttpHost())) {
-            return $this->fail($back, 'Indirizzo del pannello diverso dal redirect URI', "Apri il pannello da {$callbackOrigin}, lo stesso indirizzo di GOOGLE_REDIRECT_URI, e riprova.");
+            return $this->fail($back, __('Panel address differs from the redirect URI'), __('Open the panel from :origin, the same address as GOOGLE_REDIRECT_URI, and try again.', ['origin' => $callbackOrigin]));
         }
 
         $state = Str::random(40);
@@ -61,37 +61,37 @@ class GoogleOAuthController extends Controller
         $account = is_array($pending) ? Account::find($pending['account_id'] ?? null) : null;
 
         if ($account === null || ! is_string($state) || ! hash_equals((string) ($pending['state'] ?? ''), $state)) {
-            return $this->fail(AccountResource::getUrl('index'), 'Collegamento Google non valido', 'La richiesta è scaduta o non corrisponde. Riprova con "Connetti con Google".');
+            return $this->fail(AccountResource::getUrl('index'), __('Invalid Google connection'), __('The request has expired or does not match. Try again with "Connect with Google".'));
         }
 
         $back = AccountResource::getUrl('view', ['record' => $account]);
 
         if ($request->filled('error')) {
-            return $this->fail($back, 'Autorizzazione annullata', 'Google ha risposto: '.Str::limit((string) $request->query('error'), 100));
+            return $this->fail($back, __('Authorization cancelled'), __('Google replied: :error', ['error' => Str::limit((string) $request->query('error'), 100)]));
         }
 
         try {
             $credentials = $oauth->exchange((string) $request->query('code', ''), (string) $pending['verifier']);
         } catch (ProviderException $e) {
-            return $this->fail($back, 'Collegamento Google non riuscito', $e->getMessage());
+            return $this->fail($back, __('Google connection failed'), $e->getMessage());
         }
 
         $previous = $account->credential('email');
 
         if (filled($previous) && strcasecmp($previous, $credentials['email']) !== 0) {
-            return $this->fail($back, 'Account Google diverso', "Hai autorizzato {$credentials['email']}, ma questo account è collegato a {$previous}. Per un altro account Google crea un nuovo account.");
+            return $this->fail($back, __('Different Google account'), __('You authorised :email, but this account is connected to :previous. For another Google account, create a new account.', ['email' => $credentials['email'], 'previous' => $previous]));
         }
 
         $account->forceFill([
             'credentials' => $credentials,
             'status' => AccountStatus::Ok,
-            'status_message' => "Collegato come {$credentials['email']}.",
+            'status_message' => __('Connected as :email.', ['email' => $credentials['email']]),
             'last_checked_at' => now(),
         ])->save();
 
         Notification::make()
-            ->title('Account Google collegato')
-            ->body("Collegato come {$credentials['email']}.")
+            ->title(__('Google account connected'))
+            ->body(__('Connected as :email.', ['email' => $credentials['email']]))
             ->success()
             ->send();
 

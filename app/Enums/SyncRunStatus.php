@@ -17,12 +17,12 @@ enum SyncRunStatus: string implements HasColor, HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::Queued => 'In coda',
-            self::Running => 'In esecuzione',
-            self::Success => 'Completato',
-            self::Partial => 'Completato con errori',
-            self::Failed => 'Fallito',
-            self::Skipped => 'Saltato',
+            self::Queued => __('Queued'),
+            self::Running => __('Running'),
+            self::Success => __('Completed'),
+            self::Partial => __('Completed with errors'),
+            self::Failed => __('Failed'),
+            self::Skipped => __('Skipped'),
         };
     }
 

@@ -26,59 +26,59 @@ class Doctor extends Command
     {
         $production = app()->isProduction();
 
-        $this->components->info('Configurazione');
-        $this->check('APP_KEY impostata', filled(config('app.key')));
-        $this->check('APP_DEBUG disattivato', ! config('app.debug'), required: $production);
-        $this->check('APP_URL in HTTPS', str_starts_with((string) config('app.url'), 'https://'), required: $production);
-        $this->check('Cookie di sessione solo HTTPS (SESSION_SECURE_COOKIE)', (bool) config('session.secure'), required: $production);
-        $this->check('Coda: retry_after maggiore del timeout dei sync', (int) config('queue.connections.database.retry_after') > (new SyncJobRunner(0))->timeout);
-        $this->check('Lock: cache su database o redis', in_array(config('cache.default'), ['database', 'redis'], true), required: $production);
+        $this->components->info(__('Configuration'));
+        $this->check(__('APP_KEY set'), filled(config('app.key')));
+        $this->check(__('APP_DEBUG off'), ! config('app.debug'), required: $production);
+        $this->check(__('APP_URL on HTTPS'), str_starts_with((string) config('app.url'), 'https://'), required: $production);
+        $this->check(__('HTTPS-only session cookie (SESSION_SECURE_COOKIE)'), (bool) config('session.secure'), required: $production);
+        $this->check(__('Queue: retry_after longer than the sync timeout'), (int) config('queue.connections.database.retry_after') > (new SyncJobRunner(0))->timeout);
+        $this->check(__('Locks: cache on database or redis'), in_array(config('cache.default'), ['database', 'redis'], true), required: $production);
 
         $googleReady = $google->isConfigured();
-        $this->check('Google OAuth configurato', $googleReady, required: false);
+        $this->check(__('Google OAuth configured'), $googleReady, required: false);
 
         if ($googleReady) {
             $redirect = $google->redirectUri();
-            $this->check("Redirect Google sotto APP_URL ({$redirect})", str_starts_with($redirect, rtrim((string) config('app.url'), '/').'/'));
+            $this->check(__('Google redirect under APP_URL (:url)', ['url' => $redirect]), str_starts_with($redirect, rtrim((string) config('app.url'), '/').'/'));
         }
 
         $this->newLine();
-        $this->components->info('Servizi');
+        $this->components->info(__('Services'));
 
         try {
             DB::connection()->getPdo();
-            $this->check('Database raggiungibile ('.config('database.default').')', true);
-            $this->check('Utente amministratore creato', User::exists());
+            $this->check(__('Database reachable (:connection)', ['connection' => config('database.default')]), true);
+            $this->check(__('Administrator user created'), User::exists());
 
             $unreadable = Account::all()->filter->hasUnreadableCredentials();
             $this->check(
                 $unreadable->isEmpty()
-                    ? 'Credenziali degli account decifrabili con questa APP_KEY'
-                    : 'Credenziali illeggibili (APP_KEY diversa da quella usata per salvarle): '.$unreadable->pluck('name')->implode(', '),
+                    ? __('Account credentials readable with this APP_KEY')
+                    : __('Unreadable credentials (APP_KEY differs from the one used to save them): :accounts', ['accounts' => $unreadable->pluck('name')->implode(', ')]),
                 $unreadable->isEmpty(),
             );
         } catch (Throwable $e) {
-            $this->check('Database raggiungibile: '.$e->getMessage(), false);
+            $this->check(__('Database reachable: :error', ['error' => $e->getMessage()]), false);
         }
 
         $tick = Cache::get(DispatchDueSyncJobs::HEARTBEAT_KEY);
         $this->check(
-            'Scheduler attivo'.($tick ? ' (ultimo giro '.CarbonImmutable::parse($tick)->diffForHumans().')' : ' (mai eseguito)'),
+            __('Scheduler running').' '.($tick ? __('(last tick :ago)', ['ago' => CarbonImmutable::parse($tick)->diffForHumans()]) : __('(never run)')),
             $tick !== null && CarbonImmutable::parse($tick)->gt(now()->subMinutes(3)),
         );
 
         $stuck = SyncRun::where('status', SyncRunStatus::Queued)->where('created_at', '<', now()->subMinutes(2))->count();
-        $this->check($stuck === 0 ? 'Worker della coda: nessun run in attesa' : "Worker della coda: {$stuck} run in coda da più di 2 minuti", $stuck === 0);
+        $this->check($stuck === 0 ? __('Queue worker: no runs waiting') : __('Queue worker: :count runs queued for more than 2 minutes', ['count' => $stuck]), $stuck === 0);
 
         $this->newLine();
 
         if ($this->problems > 0) {
-            $this->components->error("{$this->problems} controlli non superati.");
+            $this->components->error(__(':count checks failed.', ['count' => $this->problems]));
 
             return self::FAILURE;
         }
 
-        $this->components->info('Tutto a posto.');
+        $this->components->info(__('All good.'));
 
         return self::SUCCESS;
     }
@@ -92,7 +92,7 @@ class Doctor extends Command
         $this->components->twoColumnDetail($label, match (true) {
             $ok => '<fg=green>OK</>',
             $required => '<fg=red>NO</>',
-            default => '<fg=yellow>non attivo</>',
+            default => '<fg=yellow>'.__('not enabled').'</>',
         });
     }
 }

@@ -26,13 +26,13 @@ class ViewSyncRun extends ViewRecord
     {
         return [
             Action::make('refresh')
-                ->label('Aggiorna')
+                ->label(__('Refresh'))
                 ->icon(Heroicon::OutlinedArrowPath)
                 ->color('gray')
                 ->visible(fn (): bool => ! $this->record->status->isFinished())
                 ->action(fn () => $this->record->refresh()),
             Action::make('job')
-                ->label('Apri il job')
+                ->label(__('Open the job'))
                 ->color('gray')
                 ->url(fn (): string => SyncJobResource::getUrl('edit', ['record' => $this->record->sync_job_id])),
         ];

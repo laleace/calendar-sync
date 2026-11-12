@@ -12,8 +12,8 @@ enum SyncTrigger: string implements HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::Schedule => 'Pianificato',
-            self::Manual => 'Manuale',
+            self::Schedule => __('Scheduled'),
+            self::Manual => __('Manual'),
         };
     }
 }

@@ -41,7 +41,7 @@ final class GoogleProvider implements CalendarProvider, WritableCalendarProvider
             return ConnectionResult::failed($e->accountStatus(), $e->getMessage());
         }
 
-        return ConnectionResult::ok("Connessione riuscita come {$primary->getId()}.");
+        return ConnectionResult::ok(__('Connected successfully as :email.', ['email' => $primary->getId()]));
     }
 
     public function discoverCalendars(Account $account): DiscoveryResult
@@ -106,7 +106,7 @@ final class GoogleProvider implements CalendarProvider, WritableCalendarProvider
                         $events[] = $dto;
                     }
                 } catch (Throwable $e) {
-                    $problems[] = "Evento {$item->getId()} non leggibile: {$e->getMessage()}";
+                    $problems[] = __('Event :id cannot be read: :error', ['id' => $item->getId(), 'error' => $e->getMessage()]);
                 }
             }
 
@@ -139,7 +139,7 @@ final class GoogleProvider implements CalendarProvider, WritableCalendarProvider
             $existing = $this->call(fn () => $service->events->get($calendar->remote_id, $id));
 
             if (! GoogleEventMapper::isOwnedBy($existing, $jobId)) {
-                throw new ProviderException("Sul calendario esiste già un evento con id {$id} non creato da questo job.");
+                throw new ProviderException(__('The calendar already has an event with id :id not created by this job.', ['id' => $id]));
             }
 
             $body->setId(null);

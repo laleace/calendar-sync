@@ -6,6 +6,7 @@ use App\CalSync\Dto\EventDto;
 use App\CalSync\Exceptions\ProviderException;
 use App\CalSync\ProviderRegistry;
 use App\Models\Calendar;
+use App\Support\DateFormat;
 use Carbon\CarbonImmutable;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Console\Attributes\Description;
@@ -27,7 +28,7 @@ class ListEvents extends Command
         $calendar = Calendar::with('account')->find($this->argument('calendar'));
 
         if ($calendar === null) {
-            $this->components->error("Calendario #{$this->argument('calendar')} non trovato.");
+            $this->components->error(__('Calendar #:id not found.', ['id' => $this->argument('calendar')]));
 
             return self::FAILURE;
         }
@@ -38,7 +39,7 @@ class ListEvents extends Command
             $from = CarbonImmutable::parse($this->option('from') ?? 'today', $timezone)->startOfDay();
             $lastDay = $this->option('to') ? CarbonImmutable::parse($this->option('to'), $timezone) : $from->addDays(30);
         } catch (InvalidFormatException) {
-            $this->components->error('Date non valide: usa il formato YYYY-MM-DD.');
+            $this->components->error(__('Invalid dates: use the YYYY-MM-DD format.'));
 
             return self::FAILURE;
         }
@@ -46,19 +47,18 @@ class ListEvents extends Command
         $to = $lastDay->addDay()->startOfDay();
 
         if ($to <= $from || $from->diffInDays($to) > self::MAX_RANGE_DAYS) {
-            $this->components->error('Intervallo non valido: "to" deve seguire "from" e il range massimo è di '.self::MAX_RANGE_DAYS.' giorni.');
+            $this->components->error(__('Invalid range: "to" must follow "from" and the maximum range is :count days.', ['count' => self::MAX_RANGE_DAYS]));
 
             return self::FAILURE;
         }
 
-        $this->components->info(sprintf(
-            'Calendario #%d · %s (%s) · dal %s al %s',
-            $calendar->id,
-            $calendar->name,
-            $calendar->account->name,
-            $from->format('d/m/Y'),
-            $lastDay->format('d/m/Y'),
-        ));
+        $this->components->info(__('Calendar #:id · :name (:account) · from :from to :to', [
+            'id' => $calendar->id,
+            'name' => $calendar->name,
+            'account' => $calendar->account->name,
+            'from' => $from->format(DateFormat::date()),
+            'to' => $lastDay->format(DateFormat::date()),
+        ]));
 
         try {
             $events = $providers->for($calendar->account)->listEvents($calendar, $from, $to);
@@ -69,21 +69,20 @@ class ListEvents extends Command
         }
 
         if (count($events) === 0) {
-            $this->components->warn('Nessun evento nel periodo.');
+            $this->components->warn(__('No events in this range.'));
         } else {
             $this->table(
-                ['Inizio', 'Fine', 'Titolo', 'Stato', 'Note', 'UID'],
+                [__('Start'), __('End'), __('Title'), __('Status'), __('Notes'), 'UID'],
                 array_map(fn (EventDto $event) => $this->row($event, $timezone), $events->events),
             );
         }
 
         $collection = collect($events->events);
-        $this->line(sprintf(
-            '  Eventi: %d · Occorrenze di ricorrenze: %d · Creati da calendar-sync: %d',
-            $collection->count(),
-            $collection->whereNotNull('recurrenceId')->count(),
-            $collection->filter->isMarked()->count(),
-        ));
+        $this->line('  '.__('Events: :count · Recurrence occurrences: :recurring · Created by calendar-sync: :marked', [
+            'count' => $collection->count(),
+            'recurring' => $collection->whereNotNull('recurrenceId')->count(),
+            'marked' => $collection->filter->isMarked()->count(),
+        ]));
 
         foreach ($events->problems as $problem) {
             $this->components->warn($problem);
@@ -98,25 +97,25 @@ class ListEvents extends Command
     private function row(EventDto $event, string $timezone): array
     {
         if ($event->allDay) {
-            $start = $event->start->format('d/m/Y');
-            $end = $event->end->subDay()->format('d/m/Y');
+            $start = $event->start->format(DateFormat::date());
+            $end = $event->end->subDay()->format(DateFormat::date());
         } else {
-            $start = $event->start->setTimezone($timezone)->format('d/m/Y H:i');
-            $end = $event->end->setTimezone($timezone)->format('d/m/Y H:i');
+            $start = $event->start->setTimezone($timezone)->format(DateFormat::dateTime());
+            $end = $event->end->setTimezone($timezone)->format(DateFormat::dateTime());
         }
 
         $notes = array_filter([
-            $event->allDay ? 'tutto il giorno' : null,
-            $event->recurrenceId !== null ? 'ricorrente' : null,
-            $event->transparent ? 'libero' : null,
-            $event->isMarked() ? 'creato da calendar-sync' : null,
+            $event->allDay ? __('all day') : null,
+            $event->recurrenceId !== null ? __('recurring') : null,
+            $event->transparent ? __('free') : null,
+            $event->isMarked() ? __('created by calendar-sync') : null,
             ! $event->allDay && $event->timezone !== $timezone ? $event->timezone : null,
         ]);
 
         return [
             $start,
             $end,
-            Str::limit($event->title !== '' ? $event->title : '(senza titolo)', 50),
+            Str::limit($event->title !== '' ? $event->title : __('(no title)'), 50),
             $event->status->getLabel(),
             implode(', ', $notes),
             Str::limit($event->uid, 24),

@@ -24,16 +24,28 @@ class SyncJobResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    // Masculine label: Filament builds "Nuovo …" titles.
-    protected static ?string $modelLabel = 'job di sincronizzazione';
-
-    protected static ?string $pluralModelLabel = 'job di sincronizzazione';
-
-    protected static ?string $navigationLabel = 'Sincronizzazioni';
-
-    protected static ?string $breadcrumb = 'Sincronizzazioni';
-
     protected static ?int $navigationSort = 5;
+
+    // The Italian label is masculine: Filament builds "Nuovo …" titles.
+    public static function getModelLabel(): string
+    {
+        return __('sync job');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('sync jobs');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Sync jobs');
+    }
+
+    public static function getBreadcrumb(): string
+    {
+        return __('Sync jobs');
+    }
 
     public static function form(Schema $schema): Schema
     {

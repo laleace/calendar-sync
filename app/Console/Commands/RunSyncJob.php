@@ -22,12 +22,12 @@ class RunSyncJob extends Command
         $job = SyncJob::find($this->argument('job'));
 
         if ($job === null) {
-            $this->components->error("Job #{$this->argument('job')} non trovato.");
+            $this->components->error(__('Job #:id not found.', ['id' => $this->argument('job')]));
 
             return self::FAILURE;
         }
 
-        $this->components->info(($this->option('dry-run') ? 'Dry-run' : 'Sync')." del job #{$job->id} · {$job->name}");
+        $this->components->info(__(':kind of job #:id · :name', ['kind' => $this->option('dry-run') ? 'Dry-run' : 'Sync', 'id' => $job->id, 'name' => $job->name]));
 
         if ($this->option('dry-run')) {
             $run = $sync->dryRun($job);
@@ -36,7 +36,7 @@ class RunSyncJob extends Command
             $lock = Cache::lock(SyncJobRunner::lockName($job->id), 900);
 
             if (! $lock->get()) {
-                $this->components->error('Un altro sync di questo job è già in esecuzione.');
+                $this->components->error(__('Another sync of this job is already running.'));
 
                 return self::FAILURE;
             }
@@ -49,15 +49,15 @@ class RunSyncJob extends Command
         }
 
         [$created, $updated, $deleted] = $run->dry_run
-            ? ['Copie da creare', 'Copie da aggiornare', 'Copie da eliminare']
-            : ['Copie create', 'Copie aggiornate', 'Copie eliminate'];
+            ? [__('Copies to create'), __('Copies to update'), __('Copies to delete')]
+            : [__('Copies created'), __('Copies updated'), __('Copies deleted')];
 
-        $this->components->twoColumnDetail('Esito', $run->status->getLabel());
+        $this->components->twoColumnDetail(__('Outcome'), $run->status->getLabel());
         $this->components->twoColumnDetail($created, (string) $run->created_count);
         $this->components->twoColumnDetail($updated, (string) $run->updated_count);
         $this->components->twoColumnDetail($deleted, (string) $run->deleted_count);
-        $this->components->twoColumnDetail('Eventi saltati', (string) $run->skipped_count);
-        $this->components->twoColumnDetail('Note', (string) $run->message);
+        $this->components->twoColumnDetail(__('Events skipped'), (string) $run->skipped_count);
+        $this->components->twoColumnDetail(__('Notes'), (string) $run->message);
 
         foreach ($run->errors ?? [] as $error) {
             $this->components->warn(trim(($error['title'] ?? '').' '.$error['message']));

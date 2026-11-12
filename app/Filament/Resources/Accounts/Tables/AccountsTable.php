@@ -7,6 +7,7 @@ use App\Filament\Actions\DiscoverCalendarsAction;
 use App\Filament\Actions\TestConnectionAction;
 use App\Filament\Support\GroupFields;
 use App\Models\Account;
+use App\Support\DateFormat;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
@@ -22,35 +23,35 @@ class AccountsTable
             ->modifyQueryUsing(fn ($query) => $query->with('group')->withCount('calendars'))
             ->columns([
                 TextColumn::make('name')
-                    ->label('Nome')
+                    ->label(__('Name'))
                     ->searchable()
                     ->sortable(),
                 GroupFields::column(),
                 TextColumn::make('type')
-                    ->label('Tipo')
+                    ->label(__('Type'))
                     ->badge(),
                 TextColumn::make('username')
-                    ->label('Utente')
+                    ->label(__('User'))
                     ->state(fn (Account $record): ?string => $record->hasUnreadableCredentials()
-                        ? 'Credenziali illeggibili'
+                        ? __('Unreadable credentials')
                         : ($record->credential('username') ?? $record->credential('email')))
                     ->color(fn (Account $record): ?string => $record->hasUnreadableCredentials() ? 'danger' : null)
                     ->tooltip(fn (Account $record): ?string => $record->hasUnreadableCredentials()
-                        ? 'Salvate con un\'altra APP_KEY: reinserisci la password o riconnetti l\'account.'
+                        ? __('Saved with another APP_KEY: enter the password again or reconnect the account.')
                         : null)
                     ->placeholder('—'),
                 TextColumn::make('status')
-                    ->label('Stato')
+                    ->label(__('Status'))
                     ->badge()
                     ->tooltip(fn (Account $record): ?string => $record->status_message),
                 TextColumn::make('calendars_count')
-                    ->label('Calendari')
+                    ->label(__('Calendars'))
                     ->numeric(),
                 TextColumn::make('last_checked_at')
-                    ->label('Ultima verifica')
+                    ->label(__('Last check'))
                     ->since()
-                    ->dateTimeTooltip('d/m/Y H:i')
-                    ->placeholder('mai')
+                    ->dateTimeTooltip(DateFormat::dateTime())
+                    ->placeholder(__('never'))
                     ->sortable(),
             ])
             ->defaultSort('name')
@@ -72,7 +73,7 @@ class AccountsTable
                     GroupFields::bulkAction(),
                 ]),
             ])
-            ->emptyStateHeading('Nessun account')
-            ->emptyStateDescription('Aggiungi un account iCloud, CalDAV o Google per iniziare.');
+            ->emptyStateHeading(__('No accounts'))
+            ->emptyStateDescription(__('Add an iCloud, CalDAV or Google account to get started.'));
     }
 }

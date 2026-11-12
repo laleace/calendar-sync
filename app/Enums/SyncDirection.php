@@ -11,7 +11,7 @@ enum SyncDirection: string implements HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::OneWay => 'Unidirezionale',
+            self::OneWay => __('One-way'),
         };
     }
 }

@@ -75,10 +75,10 @@ final class SyncEngine
                     $filtered[$key] = true;
                 }
 
-                $reason ??= isset($foreignTargetUids[$event->uid]) ? 'già presente nel calendario di destinazione' : null;
+                $reason ??= isset($foreignTargetUids[$event->uid]) ? __('already in the target calendar') : null;
 
                 // Sources are ordered by priority: the first one wins on duplicates.
-                $reason ??= isset($desired[$key]) ? 'duplicato di un evento di '.$desired[$key]['calendar']->name : null;
+                $reason ??= isset($desired[$key]) ? __('duplicate of an event in :calendar', ['calendar' => $desired[$key]['calendar']->name]) : null;
 
                 if ($reason !== null) {
                     $skipped[] = ['title' => $event->title, 'start' => $event->start->toIso8601String(), 'source' => $calendar->name, 'reason' => $reason];
@@ -102,12 +102,12 @@ final class SyncEngine
                 $operations[] = $create;
             } elseif ((int) $mapping->target_calendar_id !== $target->id) {
                 // The job target changed: move the copy.
-                $operations[] = new PlannedOperation(OperationType::Delete, $key, mapping: $mapping, reason: 'destinazione del job cambiata');
+                $operations[] = new PlannedOperation(OperationType::Delete, $key, mapping: $mapping, reason: __('job target changed'));
                 $operations[] = $create;
             } elseif ($mapping->content_hash !== $item['hash']) {
                 $operations[] = new PlannedOperation(OperationType::Update, $key, $item['calendar'], $item['source'], $item['target'], $item['hash'], $mapping);
             } elseif ($present !== null && ! isset($present['keys'][$key]) && ! isset($present['ids'][$mapping->target_event_id])) {
-                $operations[] = new PlannedOperation(OperationType::Update, $key, $item['calendar'], $item['source'], $item['target'], $item['hash'], $mapping, 'copia cancellata nella destinazione: la ripristino');
+                $operations[] = new PlannedOperation(OperationType::Update, $key, $item['calendar'], $item['source'], $item['target'], $item['hash'], $mapping, __('copy deleted in the target: restoring it'));
             } else {
                 $unchanged++;
             }
@@ -121,13 +121,13 @@ final class SyncEngine
             }
 
             $reason = match (true) {
-                ! in_array((int) $mapping->source_calendar_id, $sourceIds, true) => 'calendario sorgente rimosso dal job',
-                (int) $mapping->target_calendar_id !== $target->id => 'destinazione del job cambiata',
+                ! in_array((int) $mapping->source_calendar_id, $sourceIds, true) => __('source calendar removed from the job'),
+                (int) $mapping->target_calendar_id !== $target->id => __('job target changed'),
                 isset($unreliable[$mapping->source_calendar_id]) => null,
                 // Left the window (usually: it is in the past). Not ours to judge any more.
                 $mapping->starts_at < $from || $mapping->starts_at >= $to => null,
-                isset($filtered[$key]) => 'escluso dai filtri del job',
-                default => 'evento non più presente nella sorgente',
+                isset($filtered[$key]) => __('excluded by the job filters'),
+                default => __('event no longer in the source'),
             };
 
             if ($reason !== null) {
@@ -146,7 +146,7 @@ final class SyncEngine
         [$from, $to] = $job->syncWindow($now);
 
         $operations = $job->mappings()->with(['sourceCalendar', 'targetCalendar.account'])->get()
-            ->map(fn (EventMapping $mapping) => new PlannedOperation(OperationType::Delete, $mapping->source_key, mapping: $mapping, reason: 'rimozione delle copie del job'))
+            ->map(fn (EventMapping $mapping) => new PlannedOperation(OperationType::Delete, $mapping->source_key, mapping: $mapping, reason: __('removal of the job copies')))
             ->values()
             ->all();
 
@@ -185,11 +185,11 @@ final class SyncEngine
     private function ensureUsableTarget(Calendar $target): void
     {
         if ($target->missing_since !== null) {
-            throw new ProviderException("Il calendario di destinazione \"{$target->name}\" non è più presente sul server.");
+            throw new ProviderException(__('The target calendar ":name" is no longer on the server.', ['name' => $target->name]));
         }
 
         if (! $target->can_write) {
-            throw new ProviderException("Il calendario di destinazione \"{$target->name}\" è in sola lettura.");
+            throw new ProviderException(__('The target calendar ":name" is read-only.', ['name' => $target->name]));
         }
 
         $this->providers->writerFor($target->account);
@@ -204,14 +204,14 @@ final class SyncEngine
     private function readSource(SyncJob $job, Calendar $calendar, Calendar $target, CarbonImmutable $from, CarbonImmutable $to, Collection $mappings, array &$problems, array &$unreliable): array
     {
         if ($calendar->is($target)) {
-            $problems[] = "Il calendario \"{$calendar->name}\" è sia sorgente sia destinazione: ignorato come sorgente.";
+            $problems[] = __('The calendar ":name" is both source and target: ignored as a source.', ['name' => $calendar->name]);
             $unreliable[$calendar->id] = true;
 
             return [];
         }
 
         if ($calendar->missing_since !== null) {
-            $problems[] = "Il calendario sorgente \"{$calendar->name}\" non è più presente sul server.";
+            $problems[] = __('The source calendar ":name" is no longer on the server.', ['name' => $calendar->name]);
             $unreliable[$calendar->id] = true;
 
             return [];
@@ -234,7 +234,7 @@ final class SyncEngine
         $copiesInWindow = $mappings->filter(fn (EventMapping $m) => (int) $m->source_calendar_id === $calendar->id && $m->starts_at >= $from && $m->starts_at < $to)->count();
 
         if (count($list) === 0 && $copiesInWindow >= self::EMPTY_SOURCE_GUARD) {
-            $problems[] = "{$calendar->name}: il calendario risulta vuoto ma ha {$copiesInWindow} copie nel periodo; per sicurezza non elimino nulla.";
+            $problems[] = __(':name: the calendar looks empty but has :count copies in the range; to be safe nothing is deleted.', ['name' => $calendar->name, 'count' => $copiesInWindow]);
             $unreliable[$calendar->id] = true;
         }
 
@@ -255,16 +255,16 @@ final class SyncEngine
             $list = $this->providers->for($job->target->account)->listEvents($job->target, $from, $to);
         } catch (ProviderException $e) {
             if ($job->skip_existing_in_target) {
-                throw new ProviderException("Impossibile leggere la destinazione per saltare gli eventi già presenti: {$e->getMessage()}", previous: $e);
+                throw new ProviderException(__('Cannot read the target to skip the events already there: :error', ['error' => $e->getMessage()]), previous: $e);
             }
 
-            $problems[] = "Destinazione non leggibile ({$e->getMessage()}): le copie cancellate a mano non verranno ripristinate in questo giro.";
+            $problems[] = __('Target not readable (:error): copies deleted by hand will not be restored in this run.', ['error' => $e->getMessage()]);
 
             return null;
         }
 
         if (! $list->isComplete()) {
-            $problems[] = 'Destinazione letta in modo incompleto: le copie cancellate a mano non verranno ripristinate in questo giro.';
+            $problems[] = __('Target read incompletely: copies deleted by hand will not be restored in this run.');
 
             return $job->skip_existing_in_target ? $list : null;
         }

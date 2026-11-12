@@ -78,7 +78,7 @@ final class SyncService
                 'error_count' => count($readErrors),
                 'errors' => $readErrors ?: null,
                 'plan' => $plan->preview(self::MAX_PLAN_ENTRIES),
-                'message' => sprintf('%d copie già allineate.', $plan->unchanged),
+                'message' => __(':count copies already up to date.', ['count' => $plan->unchanged]),
             ]);
         }
 
@@ -109,8 +109,8 @@ final class SyncService
             'plan' => $plan->preview(self::MAX_PLAN_ENTRIES) ?: null,
             'message' => match (true) {
                 $result->fatal !== null => 'Interrotto: '.$this->clean($result->fatal),
-                $run->purge => sprintf('Copie rimosse: %d su %d.', $result->deleted, count($plan->operations)),
-                default => sprintf('%d copie già allineate.', $plan->unchanged),
+                $run->purge => __('Copies removed: :deleted of :total.', ['deleted' => $result->deleted, 'total' => count($plan->operations)]),
+                default => __(':count copies already up to date.', ['count' => $plan->unchanged]),
             },
         ]);
     }

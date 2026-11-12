@@ -74,10 +74,7 @@ final class CalDavClient
     ): array {
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
             if (! $this->hosts->allows($url)) {
-                throw new ProviderException(sprintf(
-                    'Il server ha indicato un indirizzo non consentito per questo account (%s): le credenziali non sono state inviate.',
-                    self::describe($url),
-                ));
+                throw new ProviderException(__('The server pointed to an address not allowed for this account (:url): the credentials were not sent.', ['url' => self::describe($url)]));
             }
 
             $request = Http::withBasicAuth($this->username, $this->password)
@@ -96,7 +93,7 @@ final class CalDavClient
                 $response = $request->send($method, $url);
             } catch (ConnectionException $e) {
                 throw new ServerUnreachable(
-                    sprintf('Connessione a %s non riuscita: %s', (new Uri($url))->getHost(), SecretRedactor::redact($e->getMessage(), [$this->password])),
+                    __('Connection to :host failed: :error', ['host' => (new Uri($url))->getHost(), 'error' => SecretRedactor::redact($e->getMessage(), [$this->password])]),
                     previous: $e,
                 );
             }
@@ -110,16 +107,16 @@ final class CalDavClient
             $url = (string) UriResolver::resolve(new Uri($url), new Uri($location));
         }
 
-        throw new ProviderException('Troppi redirect dal server CalDAV.');
+        throw new ProviderException(__('Too many redirects from the CalDAV server.'));
     }
 
     private function unexpectedResponse(Response $response, string $url): ProviderException
     {
         return match ($response->status()) {
-            401 => new AuthenticationFailed('Credenziali rifiutate dal server (HTTP 401). Controlla username e password; per iCloud serve una password specifica per app.'),
-            403 => new ProviderException(sprintf('Accesso negato (HTTP 403) a %s.', self::describe($url))),
-            404 => new ProviderException(sprintf('Risorsa non trovata (HTTP 404): %s.', self::describe($url))),
-            default => new ProviderException(sprintf('Risposta inattesa HTTP %d da %s.', $response->status(), self::describe($url))),
+            401 => new AuthenticationFailed(__('Credentials rejected by the server (HTTP 401). Check username and password; iCloud needs an app-specific password.')),
+            403 => new ProviderException(__('Access denied (HTTP 403) to :url.', ['url' => self::describe($url)])),
+            404 => new ProviderException(__('Resource not found (HTTP 404): :url.', ['url' => self::describe($url)])),
+            default => new ProviderException(__('Unexpected HTTP :status response from :url.', ['status' => $response->status(), 'url' => self::describe($url)])),
         };
     }
 

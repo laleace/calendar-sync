@@ -25,21 +25,21 @@ class RunSyncNowAction extends Action
     {
         parent::setUp();
 
-        $this->label('Esegui ora')
+        $this->label(__('Run now'))
             ->icon(Heroicon::OutlinedPlay)
             ->color('primary')
             ->disabled(fn (SyncJob $record): bool => self::isBusy($record))
-            ->tooltip(fn (SyncJob $record): ?string => self::isBusy($record) ? 'Un sync di questo job è già in coda o in esecuzione.' : null)
+            ->tooltip(fn (SyncJob $record): ?string => self::isBusy($record) ? __('A sync of this job is already queued or running.') : null)
             ->action(function (SyncJob $record, SyncService $sync): void {
                 $run = $sync->queue($record, SyncTrigger::Manual);
 
                 Notification::make()
-                    ->title('Sync accodato')
-                    ->body("Il run #{$run->id} parte appena il worker della coda è libero.")
+                    ->title(__('Sync queued'))
+                    ->body(__('Run #:id starts as soon as the queue worker is free.', ['id' => $run->id]))
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->label('Vedi il run')
+                            ->label(__('View the run'))
                             ->url(SyncRunResource::getUrl('view', ['record' => $run])),
                     ])
                     ->send();

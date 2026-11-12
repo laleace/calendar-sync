@@ -27,13 +27,22 @@ class AccountResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?string $modelLabel = 'account';
-
-    protected static ?string $pluralModelLabel = 'account';
-
-    protected static ?string $navigationLabel = 'Account';
-
     protected static ?int $navigationSort = 10;
+
+    public static function getModelLabel(): string
+    {
+        return __('account');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('accounts');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Accounts');
+    }
 
     public static function form(Schema $schema): Schema
     {

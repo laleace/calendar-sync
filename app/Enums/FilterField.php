@@ -22,15 +22,15 @@ enum FilterField: string implements HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::Title => 'Titolo',
-            self::Location => 'Luogo',
-            self::Description => 'Note',
-            self::Weekday => 'Giorno della settimana',
-            self::StartTime => 'Ora di inizio',
-            self::AllDay => 'Evento di tutto il giorno',
-            self::Free => 'Segnato come libero',
-            self::Tentative => 'Provvisorio',
-            self::Recurring => 'Ricorrente',
+            self::Title => __('Title'),
+            self::Location => __('Location'),
+            self::Description => __('Notes'),
+            self::Weekday => __('Day of the week'),
+            self::StartTime => __('Start time'),
+            self::AllDay => __('All-day event'),
+            self::Free => __('Marked as free'),
+            self::Tentative => __('Tentative'),
+            self::Recurring => __('Recurring'),
         };
     }
 

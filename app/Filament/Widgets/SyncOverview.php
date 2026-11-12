@@ -22,11 +22,11 @@ class SyncOverview extends StatsOverviewWidget
         $next = SyncJob::where('enabled', true)->min('next_run_at');
 
         return [
-            Stat::make('Job attivi', SyncJob::where('enabled', true)->count().' / '.SyncJob::count()),
-            Stat::make('Sync nelle ultime 24 ore', (clone $runs)->count())
-                ->description($failed > 0 ? "{$failed} con errori" : 'nessun errore')
+            Stat::make(__('Enabled jobs'), SyncJob::where('enabled', true)->count().' / '.SyncJob::count()),
+            Stat::make(__('Syncs in the last 24 hours'), (clone $runs)->count())
+                ->description($failed > 0 ? __(':count with errors', ['count' => $failed]) : __('no errors'))
                 ->color($failed > 0 ? 'danger' : 'success'),
-            Stat::make('Prossimo sync', $next ? now()->parse($next)->diffForHumans() : '—'),
+            Stat::make(__('Next sync'), $next ? now()->parse($next)->diffForHumans() : '—'),
         ];
     }
 }

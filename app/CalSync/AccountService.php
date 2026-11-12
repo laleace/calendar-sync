@@ -56,7 +56,7 @@ final class AccountService
                 'principal_url' => $result->principalUrl,
                 'calendar_home_url' => $result->calendarHomeUrl,
             ]);
-            $this->recordStatus($account, AccountStatus::Ok, sprintf('Trovati %d calendari.', count($result->calendars)));
+            $this->recordStatus($account, AccountStatus::Ok, trans_choice('Found :count calendar.|Found :count calendars.', count($result->calendars)));
 
             $existing = $account->calendars()->get();
             $found = new Collection;

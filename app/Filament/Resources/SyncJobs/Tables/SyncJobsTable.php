@@ -7,6 +7,7 @@ use App\Filament\Actions\RunSyncNowAction;
 use App\Filament\Resources\SyncJobs\Schemas\SyncJobForm;
 use App\Filament\Support\GroupFields;
 use App\Models\SyncJob;
+use App\Support\DateFormat;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
@@ -22,45 +23,43 @@ class SyncJobsTable
             ->modifyQueryUsing(fn ($query) => $query->with(['group', 'sources', 'target.account']))
             ->columns([
                 TextColumn::make('name')
-                    ->label('Nome')
+                    ->label(__('Name'))
                     ->searchable()
                     ->sortable(),
                 GroupFields::column(),
                 TextColumn::make('sources.name')
-                    ->label('Sorgenti')
+                    ->label(__('Sources'))
                     ->badge()
                     ->color('gray'),
                 TextColumn::make('target.name')
-                    ->label('Destinazione')
+                    ->label(__('Target'))
                     ->description(fn (SyncJob $record): string => $record->target->account->name),
                 TextColumn::make('privacy_mode')
                     ->label('Privacy')
                     ->badge(),
                 TextColumn::make('filters')
-                    ->label('Filtri')
-                    ->state(fn (SyncJob $record): ?string => match ($count = $record->eventFilters()->count()) {
-                        0 => null,
-                        1 => '1 regola',
-                        default => "{$count} regole",
-                    })
+                    ->label(__('Filters'))
+                    ->state(fn (SyncJob $record): ?string => ($count = $record->eventFilters()->count()) > 0
+                        ? trans_choice(':count rule|:count rules', $count)
+                        : null)
                     ->badge()
                     ->color('info')
                     ->placeholder('—'),
                 TextColumn::make('interval_minutes')
-                    ->label('Frequenza')
-                    ->formatStateUsing(fn (int $state): string => SyncJobForm::INTERVALS[$state] ?? "Ogni {$state} minuti"),
+                    ->label(__('Frequency'))
+                    ->formatStateUsing(fn (int $state): string => SyncJobForm::intervals()[$state] ?? __('Every :count minutes', ['count' => $state])),
                 ToggleColumn::make('enabled')
-                    ->label('Attivo'),
+                    ->label(__('Enabled')),
                 TextColumn::make('last_run_at')
-                    ->label('Ultimo sync')
+                    ->label(__('Last sync'))
                     ->since()
-                    ->dateTimeTooltip('d/m/Y H:i')
-                    ->placeholder('mai'),
+                    ->dateTimeTooltip(DateFormat::dateTime())
+                    ->placeholder(__('never')),
                 TextColumn::make('next_run_at')
-                    ->label('Prossimo')
+                    ->label(__('Next'))
                     ->state(fn (SyncJob $record) => $record->enabled ? ($record->next_run_at ?? now()) : null)
                     ->since()
-                    ->dateTimeTooltip('d/m/Y H:i')
+                    ->dateTimeTooltip(DateFormat::dateTime())
                     ->placeholder('—'),
             ])
             ->defaultSort('name')
@@ -80,7 +79,7 @@ class SyncJobsTable
                     GroupFields::bulkAction(),
                 ]),
             ])
-            ->emptyStateHeading('Nessuna sincronizzazione')
-            ->emptyStateDescription('Crea un job: scegli uno o più calendari sorgente e un calendario di destinazione.');
+            ->emptyStateHeading(__('No sync jobs'))
+            ->emptyStateDescription(__('Create a job: pick one or more source calendars and a target calendar.'));
     }
 }

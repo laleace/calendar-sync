@@ -18,11 +18,11 @@ enum TextOperator: string implements HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::Contains => 'contiene',
-            self::StartsWith => 'inizia con',
-            self::EndsWith => 'finisce con',
-            self::Equals => 'è uguale a',
-            self::Regex => 'espressione regolare',
+            self::Contains => __('contains'),
+            self::StartsWith => __('starts with'),
+            self::EndsWith => __('ends with'),
+            self::Equals => __('equals'),
+            self::Regex => __('regular expression'),
         };
     }
 }

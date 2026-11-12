@@ -25,28 +25,27 @@ class PurgeCopiesAction extends Action
     {
         parent::setUp();
 
-        $this->label('Rimuovi copie')
+        $this->label(__('Remove copies'))
             ->icon(Heroicon::OutlinedTrash)
             ->color('danger')
             ->visible(fn (SyncJob $record): bool => $record->mappings()->exists())
             ->requiresConfirmation()
-            ->modalHeading('Rimuovere le copie create da questo job?')
-            ->modalDescription(fn (SyncJob $record): string => sprintf(
-                'Verranno eliminate dal calendario "%s" le %d copie create da questo job, comprese quelle passate. Gli eventi originali non vengono toccati. Il job verrà disattivato.',
-                $record->target->name,
-                $record->mappings()->count(),
-            ))
-            ->modalSubmitActionLabel('Rimuovi le copie')
+            ->modalHeading(__('Remove the copies created by this job?'))
+            ->modalDescription(fn (SyncJob $record): string => __('The :count copies created by this job, past ones included, will be deleted from the calendar ":calendar". The original events are not touched. The job will be disabled.', [
+                'calendar' => $record->target->name,
+                'count' => $record->mappings()->count(),
+            ]))
+            ->modalSubmitActionLabel(__('Remove the copies'))
             ->action(function (SyncJob $record, SyncService $sync): void {
                 $run = $sync->queue($record, SyncTrigger::Manual, purge: true);
 
                 Notification::make()
-                    ->title('Rimozione delle copie accodata')
-                    ->body("Il job è stato disattivato. Segui l'avanzamento nel run #{$run->id}.")
+                    ->title(__('Copy removal queued'))
+                    ->body(__('The job has been disabled. Follow the progress in run #:id.', ['id' => $run->id]))
                     ->success()
                     ->actions([
                         Action::make('view')
-                            ->label('Vedi il run')
+                            ->label(__('View the run'))
                             ->url(SyncRunResource::getUrl('view', ['record' => $run])),
                     ])
                     ->send();

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Accounts\Schemas;
 
 use App\Enums\AccountType;
 use App\Models\Account;
+use App\Support\DateFormat;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -19,17 +20,17 @@ class AccountInfolist
                     ->columns(3)
                     ->schema([
                         TextEntry::make('type')
-                            ->label('Tipo')
+                            ->label(__('Type'))
                             ->badge(),
                         TextEntry::make('group.name')
-                            ->label('Gruppo')
+                            ->label(__('Group'))
                             ->badge()
                             ->color('gray')
-                            ->placeholder('Nessun gruppo'),
+                            ->placeholder(__('No group')),
                         TextEntry::make('username')
-                            ->label('Utente')
+                            ->label(__('User'))
                             ->state(fn (Account $record): ?string => $record->hasUnreadableCredentials()
-                                ? 'Credenziali illeggibili: salvate con un\'altra APP_KEY. Reinserisci la password o riconnetti l\'account.'
+                                ? __('Unreadable credentials: saved with another APP_KEY. Enter the password again or reconnect the account.')
                                 : ($record->credential('username') ?? $record->credential('email')))
                             ->color(fn (Account $record): ?string => $record->hasUnreadableCredentials() ? 'danger' : null)
                             ->placeholder('—'),
@@ -37,15 +38,15 @@ class AccountInfolist
                             ->label('Server')
                             ->visible(fn (Account $record): bool => $record->type === AccountType::CaldavGeneric),
                         TextEntry::make('status')
-                            ->label('Stato')
+                            ->label(__('Status'))
                             ->badge(),
                         TextEntry::make('last_checked_at')
-                            ->label('Ultima verifica')
+                            ->label(__('Last check'))
                             ->since()
-                            ->dateTimeTooltip('d/m/Y H:i')
-                            ->placeholder('mai'),
+                            ->dateTimeTooltip(DateFormat::dateTime())
+                            ->placeholder(__('never')),
                         TextEntry::make('status_message')
-                            ->label('Dettaglio')
+                            ->label(__('Status details'))
                             ->placeholder('—')
                             ->columnSpanFull(),
                     ]),
@@ -57,11 +58,11 @@ class AccountInfolist
                     ->schema([
                         TextEntry::make('principal_url')
                             ->label('Principal')
-                            ->placeholder('non ancora scoperto')
+                            ->placeholder(__('not discovered yet'))
                             ->copyable(),
                         TextEntry::make('calendar_home_url')
                             ->label('Calendar home')
-                            ->placeholder('non ancora scoperta')
+                            ->placeholder(__('not discovered yet'))
                             ->copyable(),
                     ]),
             ]);

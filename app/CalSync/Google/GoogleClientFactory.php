@@ -50,7 +50,7 @@ final class GoogleClientFactory
     public function make(): Client
     {
         if (! $this->isConfigured()) {
-            throw new ProviderException('Google non è configurato: imposta GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET nel file .env (vedi docs/google-oauth.md).');
+            throw new ProviderException(__('Google is not configured: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the .env file (see docs/google-oauth.md).'));
         }
 
         $client = new Client([
@@ -86,13 +86,13 @@ final class GoogleClientFactory
     public function forAccount(Account $account): Client
     {
         if ($account->hasUnreadableCredentials()) {
-            throw new TokenExpired('I token salvati non si possono decifrare: la APP_KEY è cambiata da quando l\'account è stato collegato. Riconnetti l\'account Google.');
+            throw new TokenExpired(__('The saved tokens cannot be decrypted: APP_KEY has changed since the account was connected. Reconnect the Google account.'));
         }
 
         $refreshToken = $account->credential('refresh_token');
 
         if (blank($refreshToken)) {
-            throw new TokenExpired('Account non collegato a Google: usa "Connetti con Google".');
+            throw new TokenExpired(__('Account not connected to Google: use "Connect with Google".'));
         }
 
         $client = $this->make();
@@ -118,16 +118,16 @@ final class GoogleClientFactory
         try {
             $token = $client->fetchAccessTokenWithRefreshToken($refreshToken);
         } catch (GuzzleException $e) {
-            throw new ServerUnreachable('Connessione a Google non riuscita: '.SecretRedactor::redact($e->getMessage(), [$refreshToken]), previous: $e);
+            throw new ServerUnreachable(__('Connection to Google failed: :error', ['error' => SecretRedactor::redact($e->getMessage(), [$refreshToken])]), previous: $e);
         }
 
         if (! isset($token['access_token']) || isset($token['error'])) {
-            $error = (string) ($token['error'] ?? 'risposta inattesa');
+            $error = (string) ($token['error'] ?? __('unexpected response'));
 
             throw match ($error) {
-                'invalid_grant' => new TokenExpired('Il collegamento con Google è scaduto o è stato revocato: riconnetti l\'account.'),
-                'invalid_client', 'unauthorized_client' => new ProviderException('Google ha rifiutato il client OAuth: controlla GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.'),
-                default => new ProviderException('Rinnovo del token Google non riuscito: '.SecretRedactor::redact((string) ($token['error_description'] ?? $error))),
+                'invalid_grant' => new TokenExpired(__('The Google connection has expired or was revoked: reconnect the account.')),
+                'invalid_client', 'unauthorized_client' => new ProviderException(__('Google rejected the OAuth client: check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.')),
+                default => new ProviderException(__('Google token refresh failed: :error', ['error' => SecretRedactor::redact((string) ($token['error_description'] ?? $error))])),
             };
         }
 

@@ -23,22 +23,22 @@ final class GoogleErrors
         }
 
         if ($e instanceof GuzzleException) {
-            return new ServerUnreachable('Connessione a Google non riuscita: '.SecretRedactor::redact($e->getMessage()), previous: $e);
+            return new ServerUnreachable(__('Connection to Google failed: :error', ['error' => SecretRedactor::redact($e->getMessage())]), previous: $e);
         }
 
         if (! $e instanceof GoogleServiceException) {
-            return new ProviderException('Errore Google: '.SecretRedactor::redact($e->getMessage()), previous: $e);
+            return new ProviderException(__('Google error: :error', ['error' => SecretRedactor::redact($e->getMessage())]), previous: $e);
         }
 
         $message = self::message($e);
         $reason = $e->getErrors()[0]['reason'] ?? null;
 
         return match (true) {
-            $e->getCode() === 401 => new TokenExpired('Google ha rifiutato l\'accesso (HTTP 401): riconnetti l\'account.', previous: $e),
-            $e->getCode() === 429 || in_array($reason, ['rateLimitExceeded', 'userRateLimitExceeded', 'quotaExceeded'], true) => new ProviderException('Limite di richieste Google raggiunto: riprova più tardi.', previous: $e),
-            in_array($e->getCode(), [404, 410], true) => new EventNotFound("Risorsa non trovata su Google (HTTP {$e->getCode()}): {$message}", previous: $e),
-            $e->getCode() === 403 => new ProviderException("Permessi insufficienti su Google (HTTP 403): {$message}", previous: $e),
-            default => new ProviderException("Errore Google (HTTP {$e->getCode()}): {$message}", previous: $e),
+            $e->getCode() === 401 => new TokenExpired(__('Google refused access (HTTP 401): reconnect the account.'), previous: $e),
+            $e->getCode() === 429 || in_array($reason, ['rateLimitExceeded', 'userRateLimitExceeded', 'quotaExceeded'], true) => new ProviderException(__('Google request limit reached: try again later.'), previous: $e),
+            in_array($e->getCode(), [404, 410], true) => new EventNotFound(__('Resource not found on Google (HTTP :status): :error', ['status' => $e->getCode(), 'error' => $message]), previous: $e),
+            $e->getCode() === 403 => new ProviderException(__('Insufficient permissions on Google (HTTP 403): :error', ['error' => $message]), previous: $e),
+            default => new ProviderException(__('Google error (HTTP :status): :error', ['status' => $e->getCode(), 'error' => $message]), previous: $e),
         };
     }
 
@@ -50,6 +50,6 @@ final class GoogleErrors
         $decoded = json_decode($e->getMessage(), true);
         $message = is_array($decoded) ? ($decoded['error']['message'] ?? $decoded['error_description'] ?? null) : null;
 
-        return SecretRedactor::redact((string) ($message ?? $e->getErrors()[0]['message'] ?? 'errore sconosciuto'));
+        return SecretRedactor::redact((string) ($message ?? $e->getErrors()[0]['message'] ?? __('unknown error')));
     }
 }
