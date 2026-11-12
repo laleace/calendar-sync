@@ -2,6 +2,7 @@
 
 > Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9, 10 e 11; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
+> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9. Da approvare.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -493,3 +494,24 @@ Idempotenza:
   - Nel form del job, se il gruppo è vuoto e sorgenti e destinazione appartengono tutte ad account dello stesso gruppo, il gruppo viene proposto.
   - Nelle select dei calendari l'intestazione diventa "Gruppo · Account", così gli account dello stesso gruppo stanno vicini.
   - Lo storico dei run si filtra per gruppo del job.
+
+## 9. Rilascio open source (proposto il 2026-11-12)
+
+### 9.1 Decisioni
+1. **Pubblicazione gratuita su GitHub** (account `laleace`), con donazioni tramite GitHub Sponsors e/o Ko-fi (`.github/FUNDING.yml`). Niente SaaS: ogni utente installa la propria istanza e crea il proprio client OAuth Google per uso personale, quindi a noi non serve la verifica dell'app.
+2. **Licenza AGPL-3.0.** Chi offre l'app come servizio online deve pubblicare le modifiche. Essendo l'unico autore, resta possibile una futura licenza commerciale.
+3. **Storia git intera**, con gli autori riscritti su un'unica identità: `Alessandro <1488206+laleace@users.noreply.github.com>`. Gli hash cambiano: Gitea riceve un force push e sul container serve una volta `git fetch` + `git reset --hard origin/main` (fatto da te, allo step 17).
+4. **Il deploy di produzione non cambia.** Il container continua a fare pull da Gitea con `deploy/update.sh`. GitHub è un secondo remote.
+5. **Pubblico internazionale.** GUI tradotta (italiano e inglese, scelti con `APP_LOCALE`), README e documentazione in inglese con versione italiana, Docker Compose come installazione principale. Il deploy LXC resta come guida "bare metal", resa generica.
+6. **Fuori dal repository pubblico:** `DEPLOY_ANALYSIS.md` e `deploy-kit/` (non tracciati). Se in futuro il progetto adotta il Deploy-Kit, sarà da decidere se la copia del kit può diventare pubblica.
+
+### 9.2 Step
+
+| Step | Contenuto | Verifica |
+|---|---|---|
+| 12 | Pulizia dati personali: hostname, IP di LAN, Gitea e FRITZ!Box diventano placeholder o esempi generici in `deploy/`, `docs/` e `.env.example`. File `LICENSE` (AGPL-3.0), intestazione `license` in `composer.json`, `SECURITY.md`. Pagina privacy generica (vale per chiunque installi l'app) | `git grep` senza riferimenti personali, test verdi, `update.sh` invariato |
+| 13 | GUI tradotta: testi di Filament, enum, notifiche, messaggi di stato ed errori in `lang/it` e `lang/en`. Default `it`, come oggi. `busy_title` predefinito tradotto. Test che nessuna chiave manchi in una delle due lingue | Test verdi in entrambe le lingue, controllo visivo del pannello in inglese |
+| 14 | Docker: `Dockerfile` (PHP 8.4 + nginx o FrankenPHP), `docker-compose.yml` con app, worker, scheduler e MySQL (variante SQLite), volume per lo storage, `APP_KEY` generata al primo avvio, `calsync:doctor` come healthcheck. Immagine pubblicata su GitHub Container Registry | `docker compose up` da zero, login, account CalDAV di prova, sync, riavvio senza perdita dati |
+| 15 | Documentazione: `README.md` in inglese (funzioni, screenshot, installazione Docker e bare metal, Google OAuth, FAQ) e `README.it.md`. `docs/google-oauth.md` e la guida HTTPS anche in inglese. `CONTRIBUTING.md` breve, `FUNDING.yml`, template per le issue. `PIANO.md` resta in italiano come documento di progetto | Rilettura; i link funzionano |
+| 16 | CI su GitHub Actions: test Pest e Pint a ogni push e pull request, build dell'immagine Docker sui tag | Workflow verde su un branch di prova |
+| 17 | Pubblicazione: riscrittura degli autori, force push su Gitea (dopo il tuo OK), riallineamento del container (lo fai tu), creazione del repository pubblico su GitHub, push, tag `v1.0.0`, release, attivazione di Sponsors | Repository visibile, CI verde, container aggiornato con `calsync:doctor` OK |
