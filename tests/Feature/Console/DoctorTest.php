@@ -41,3 +41,24 @@ it('requires a production-grade configuration in production', function () {
         ->expectsOutputToContain('APP_DEBUG disattivato')
         ->assertFailed();
 });
+
+it('checks only the services when used as a healthcheck', function () {
+    // In production over plain HTTP and without an admin yet: only the services count.
+    app()->detectEnvironment(fn () => 'production');
+    config(['app.url' => 'http://calsync.lan', 'session.secure' => false]);
+    Cache::forever(DispatchDueSyncJobs::HEARTBEAT_KEY, now()->toIso8601String());
+
+    $this->artisan('calsync:doctor --services')
+        ->doesntExpectOutputToContain('APP_URL')
+        ->doesntExpectOutputToContain('Utente amministratore')
+        ->expectsOutputToContain('Tutto a posto.')
+        ->assertSuccessful();
+});
+
+it('fails the healthcheck when the scheduler stops', function () {
+    Cache::forever(DispatchDueSyncJobs::HEARTBEAT_KEY, now()->subMinutes(10)->toIso8601String());
+
+    $this->artisan('calsync:doctor --services')
+        ->expectsOutputToContain('Scheduler attivo')
+        ->assertFailed();
+});

@@ -2,7 +2,7 @@
 
 > Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9, 10 e 11; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
-> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12, 13.
+> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12, 13; step 14 in verifica su Docker.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -533,3 +533,13 @@ Idempotenza:
   - Test: `phpunit.xml` fissa `APP_LOCALE=it`, così i test esistenti non dipendono dal `.env`. I test unitari ora avviano l'app, che serve per il traduttore. `TranslationsTest` controlla che ogni chiave usata nel codice sia tradotta, che non restino traduzioni inutilizzate, che placeholder e forme plurali coincidano, e che il pannello si mostri in entrambe le lingue.
   - Verifica visiva del pannello in inglese con un database temporaneo: dashboard, job, form, storico, account, gruppi, dry-run, anteprima eventi e privacy.
   - Non tradotti: i messaggi di validazione standard di Laravel (es. "campo obbligatorio") restano in inglese in entrambe le lingue, come prima dello step 13.
+- **Step 14.**
+  - Immagine unica basata su FrankenPHP (`dunglas/frankenphp:1-php8.4`): Caddy e PHP nello stesso processo, HTTP sulla porta 8080, utente `www-data`, nessun file `.env` dentro l'immagine. Estensioni aggiunte: intl, zip, pdo_mysql, pcntl (serve al worker per interrompere una sync oltre il timeout) e opcache.
+  - Lo stesso container fa tre ruoli, scelti dal comando (`docker/entrypoint.sh`): `web` esegue le migration e serve il pannello, `worker` esegue le sync, `scheduler` mette in coda i job ogni minuto. Ogni container mette in cache configurazione, rotte, viste e componenti Filament all'avvio.
+  - `docker/compose.yaml` con MySQL 8.4 e `docker/compose.sqlite.yaml` senza il container del database (SQLite in WAL con `DB_BUSY_TIMEOUT`, opzioni ora lette da env in `config/database.php`). `docker/compose.build.yaml` costruisce l'immagine dal checkout invece di scaricarla.
+  - I file Docker stanno in `docker/`, con il loro `.env.example`: il `.env` di Compose non si confonde con quello di Laravel nella radice. Chi installa scarica solo `compose.yaml` e `.env.example`; l'immagine arriva da `ghcr.io/laleace/calendar-sync`, pubblicata dalla CI allo step 16.
+  - Volume `data` su `storage/app`: contiene la `APP_KEY` generata al primo avvio (`app.key`, se `APP_KEY` è vuota) e il database SQLite. Log su stderr (`docker compose logs`), sessioni, cache e coda nel database.
+  - Healthcheck: `web` chiama `/up`; `worker` e `scheduler` usano il nuovo `calsync:doctor --services`, che controlla solo database, credenziali leggibili, scheduler e coda. I controlli di configurazione (HTTPS, cookie sicuro) restano nel doctor completo: su HTTP in chiaro li segnala, com'è giusto.
+  - HTTPS: l'immagine serve solo HTTP; davanti va un reverse proxy con TLS. `TRUSTED_PROXIES` predefinito sulle reti Docker (`172.16.0.0/12`), così un proxy sulla stessa macchina è fidato e i client della LAN no.
+  - Simulazione locale senza Docker su una copia pulita: build senza `.env` né database, avvio dei tre ruoli, migration su SQLite in WAL, `/up` e login a 200, tick dello scheduler, `calsync:doctor --services` OK.
+

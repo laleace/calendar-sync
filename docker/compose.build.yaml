@@ -1,0 +1,14 @@
+# Builds the image from this checkout instead of pulling it from the registry:
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+#   docker compose -f compose.sqlite.yaml -f compose.build.yaml up -d --build
+
+services:
+  web:
+    build: ..
+    pull_policy: build
+  worker:
+    build: ..
+    pull_policy: build
+  scheduler:
+    build: ..
+    pull_policy: build

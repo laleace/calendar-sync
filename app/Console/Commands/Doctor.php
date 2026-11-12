@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-#[Signature('calsync:doctor')]
+#[Signature('calsync:doctor {--services : Only check the database, the scheduler and the queue worker, as a container healthcheck}')]
 #[Description('Check that the installation is ready: configuration, database, scheduler and queue worker')]
 class Doctor extends Command
 {
@@ -24,31 +24,18 @@ class Doctor extends Command
 
     public function handle(GoogleClientFactory $google): int
     {
-        $production = app()->isProduction();
-
-        $this->components->info(__('Configuration'));
-        $this->check(__('APP_KEY set'), filled(config('app.key')));
-        $this->check(__('APP_DEBUG off'), ! config('app.debug'), required: $production);
-        $this->check(__('APP_URL on HTTPS'), str_starts_with((string) config('app.url'), 'https://'), required: $production);
-        $this->check(__('HTTPS-only session cookie (SESSION_SECURE_COOKIE)'), (bool) config('session.secure'), required: $production);
-        $this->check(__('Queue: retry_after longer than the sync timeout'), (int) config('queue.connections.database.retry_after') > (new SyncJobRunner(0))->timeout);
-        $this->check(__('Locks: cache on database or redis'), in_array(config('cache.default'), ['database', 'redis'], true), required: $production);
-
-        $googleReady = $google->isConfigured();
-        $this->check(__('Google OAuth configured'), $googleReady, required: false);
-
-        if ($googleReady) {
-            $redirect = $google->redirectUri();
-            $this->check(__('Google redirect under APP_URL (:url)', ['url' => $redirect]), str_starts_with($redirect, rtrim((string) config('app.url'), '/').'/'));
+        if (! $this->option('services')) {
+            $this->checkConfiguration($google);
         }
 
-        $this->newLine();
         $this->components->info(__('Services'));
 
         try {
             DB::connection()->getPdo();
             $this->check(__('Database reachable (:connection)', ['connection' => config('database.default')]), true);
-            $this->check(__('Administrator user created'), User::exists());
+            if (! $this->option('services')) {
+                $this->check(__('Administrator user created'), User::exists());
+            }
 
             $unreadable = Account::all()->filter->hasUnreadableCredentials();
             $this->check(
@@ -81,6 +68,29 @@ class Doctor extends Command
         $this->components->info(__('All good.'));
 
         return self::SUCCESS;
+    }
+
+    private function checkConfiguration(GoogleClientFactory $google): void
+    {
+        $production = app()->isProduction();
+
+        $this->components->info(__('Configuration'));
+        $this->check(__('APP_KEY set'), filled(config('app.key')));
+        $this->check(__('APP_DEBUG off'), ! config('app.debug'), required: $production);
+        $this->check(__('APP_URL on HTTPS'), str_starts_with((string) config('app.url'), 'https://'), required: $production);
+        $this->check(__('HTTPS-only session cookie (SESSION_SECURE_COOKIE)'), (bool) config('session.secure'), required: $production);
+        $this->check(__('Queue: retry_after longer than the sync timeout'), (int) config('queue.connections.database.retry_after') > (new SyncJobRunner(0))->timeout);
+        $this->check(__('Locks: cache on database or redis'), in_array(config('cache.default'), ['database', 'redis'], true), required: $production);
+
+        $googleReady = $google->isConfigured();
+        $this->check(__('Google OAuth configured'), $googleReady, required: false);
+
+        if ($googleReady) {
+            $redirect = $google->redirectUri();
+            $this->check(__('Google redirect under APP_URL (:url)', ['url' => $redirect]), str_starts_with($redirect, rtrim((string) config('app.url'), '/').'/'));
+        }
+
+        $this->newLine();
     }
 
     private function check(string $label, bool $ok, bool $required = true): void

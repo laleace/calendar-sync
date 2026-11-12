@@ -1,0 +1,26 @@
+# Caddyfile of the calendar-sync image: plain HTTP on port 8080.
+# For HTTPS put a reverse proxy in front (Caddy, Traefik, nginx) and set APP_URL
+# to the https:// address.
+{
+	admin off
+	auto_https off
+	frankenphp
+}
+
+:8080 {
+	root * /app/public
+	encode zstd br gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Filament assets are versioned (?v=...): cache them.
+	@filament path /css/filament/* /js/filament/* /fonts/filament/*
+	header @filament Cache-Control "public, max-age=2592000"
+
+	php_server
+}

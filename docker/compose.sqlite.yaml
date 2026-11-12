@@ -1,0 +1,66 @@
+# calendar-sync with SQLite: no database container, everything in one volume.
+# Fine for a personal installation with a few jobs; MySQL (compose.yaml) handles
+# concurrent writes better.
+#   cp .env.example .env    # then set APP_URL (DB_PASSWORD is not used)
+#   docker compose -f compose.sqlite.yaml up -d
+#   docker compose -f compose.sqlite.yaml exec web php artisan calsync:create-admin
+
+name: calendar-sync
+
+x-app: &app
+  image: ghcr.io/laleace/calendar-sync:${CALSYNC_VERSION:-latest}
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    DB_CONNECTION: sqlite
+    DB_DATABASE: /app/storage/app/database.sqlite
+    # Web, worker and scheduler share the file: wait for locks, readers do not block writers.
+    DB_BUSY_TIMEOUT: 10000
+    DB_JOURNAL_MODE: wal
+  volumes:
+    - data:/app/storage/app
+  security_opt:
+    - no-new-privileges:true
+
+x-services-healthcheck: &services-healthcheck
+  # Fails when the scheduler or the queue worker stop: no sync would run.
+  test: ["CMD", "php", "artisan", "calsync:doctor", "--services", "--no-ansi"]
+  interval: 60s
+  timeout: 20s
+  start_period: 3m
+  retries: 2
+
+services:
+  web:
+    <<: *app
+    command: web
+    ports:
+      # Reachable from your network. Behind a reverse proxy on the same machine:
+      # "127.0.0.1:8080:8080".
+      - ${CALSYNC_HTTP_PORT:-8080}:8080
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/up') === false ? 1 : 0);"]
+      interval: 30s
+      timeout: 5s
+      start_period: 1m
+
+  worker:
+    <<: *app
+    command: worker
+    # A running sync gets time to finish before the container stops.
+    stop_grace_period: 1m
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck: *services-healthcheck
+
+  scheduler:
+    <<: *app
+    command: scheduler
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck: *services-healthcheck
+
+volumes:
+  data:
