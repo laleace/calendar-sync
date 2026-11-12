@@ -1,43 +1,45 @@
-# HTTPS in rete locale con dominio Cloudflare (guida riusabile)
+# HTTPS inside a local network with a Cloudflare domain (reusable guide)
 
-Obiettivo: `https://app.tuodominio.it` raggiungibile **solo dalla LAN**, con certificato Let's Encrypt **valido** (nessun avviso nel browser), senza aprire porte sul router.
+[Italiano](https-lan-cloudflare.it.md)
 
-## Come funziona (in 3 righe)
+Goal: `https://app.yourdomain.com` reachable **only from your LAN**, with a **valid** Let's Encrypt certificate (no browser warning), without opening any port on the router.
 
-1. Su Cloudflare un record `A` fa puntare il nome a un **IP privato** (es. `192.168.1.50`). Da Internet non porta da nessuna parte; in LAN sì.
-2. Let's Encrypt emette il certificato con la challenge **DNS-01**: certbot crea un record TXT temporaneo via API Cloudflare. Non serve nessuna porta aperta.
-3. nginx serve il sito con quel certificato; certbot lo rinnova da solo.
+## How it works (in 3 lines)
 
-## Valori da sostituire (per ogni nuovo progetto)
+1. On Cloudflare, an `A` record points the name to a **private IP** (for example `192.168.1.50`). From the Internet it leads nowhere; on the LAN it works.
+2. Let's Encrypt issues the certificate with the **DNS-01** challenge: certbot creates a temporary TXT record through the Cloudflare API. No open port is needed.
+3. nginx serves the site with that certificate; certbot renews it by itself.
 
-| Segnaposto | Esempio |
+## Values to replace (for every new project)
+
+| Placeholder | Example |
 |---|---|
-| `HOST` | `app.tuodominio.it` |
-| `IP` | `192.168.1.50` (IP statico della macchina/container col web server) |
+| `HOST` | `app.yourdomain.com` |
+| `IP` | `192.168.1.50` (static IP of the machine or container with the web server) |
 
 ```bash
-HOST=app.tuodominio.it
+HOST=app.yourdomain.com
 ```
 
 ---
 
-## Parte A – Una volta sola (valida per tutti i progetti)
+## Part A – Once only (valid for all projects)
 
-### A1. Token API Cloudflare
-Cloudflare → **My Profile → API Tokens → Create Token** → modello **Edit zone DNS**.
-- Permessi: `Zone → DNS → Edit`
-- Zone Resources: solo la tua zona (`tuodominio.it`)
+### A1. Cloudflare API token
+Cloudflare → **My Profile → API Tokens → Create Token** → template **Edit zone DNS**.
+- Permissions: `Zone → DNS → Edit`
+- Zone Resources: only your zone (`yourdomain.com`)
 
-Salvalo sul server (sempre permessi 600):
+Save it on the server (always with mode 600):
 
 ```bash
 apt install -y nginx certbot python3-certbot-dns-cloudflare
 mkdir -p /etc/letsencrypt
 install -m 600 /dev/null /etc/letsencrypt/cloudflare.ini
-echo "dns_cloudflare_api_token = <IL-TOKEN>" > /etc/letsencrypt/cloudflare.ini
+echo "dns_cloudflare_api_token = <THE-TOKEN>" > /etc/letsencrypt/cloudflare.ini
 ```
 
-### A2. Reload automatico di nginx a ogni rinnovo
+### A2. Automatic nginx reload at every renewal
 
 ```bash
 mkdir -p /etc/letsencrypt/renewal-hooks/deploy
@@ -45,17 +47,17 @@ printf '#!/bin/sh\nsystemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/de
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 ```
 
-(`certbot.timer` rinnova già da solo ogni giorno se serve.)
+(`certbot.timer` already renews by itself every day when needed.)
 
-### A3. Eccezione "DNS rebinding" sul router (solo se serve)
-Molti router/DNS locali (FRITZ!Box, Pi-hole, AdGuard, OPNsense) bloccano i nomi pubblici che risolvono su IP privati. Sintomo:
+### A3. "DNS rebinding" exception on the router (only if needed)
+Many routers and local DNS servers (FRITZ!Box, Pi-hole, AdGuard, OPNsense) block public names that resolve to private IPs. Symptom:
 
 ```bash
-dig +short $HOST @1.1.1.1   # restituisce l'IP
-dig +short $HOST            # vuoto  → è il router
+dig +short $HOST @1.1.1.1   # returns the IP
+dig +short $HOST            # empty  → it is the router
 ```
 
-Soluzione: aggiungi `HOST` (o tutto `tuodominio.it`) alle eccezioni anti-rebinding, oppure crea un record DNS locale `HOST → IP`. FRITZ!Box: *Rete domestica → Rete → Impostazioni di rete → Protezione dal DNS rebinding*. Poi svuota la cache DNS del computer (comando per macOS):
+Solution: add `HOST` (or the whole `yourdomain.com`) to the anti-rebinding exceptions, or create a local DNS record `HOST → IP`. FRITZ!Box: *Home Network → Network → Network Settings → DNS rebind protection*. Then flush your computer's DNS cache (macOS command):
 
 ```bash
 sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
@@ -63,12 +65,12 @@ sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 
 ---
 
-## Parte B – Per ogni nuovo sito (5 minuti)
+## Part B – For every new site (5 minutes)
 
-### B1. DNS su Cloudflare
-**DNS → Records → Add record**: tipo `A`, nome `app`, contenuto `IP`, **Proxy OFF** (nuvola grigia, "DNS only"). Il proxy arancione non funziona con IP privati.
+### B1. DNS on Cloudflare
+**DNS → Records → Add record**: type `A`, name `app`, content `IP`, **Proxy OFF** (grey cloud, "DNS only"). The orange proxy does not work with private IPs.
 
-### B2. Certificato
+### B2. Certificate
 
 ```bash
 certbot certonly --dns-cloudflare \
@@ -77,30 +79,30 @@ certbot certonly --dns-cloudflare \
   -d "$HOST"
 ```
 
-Risultato: `/etc/letsencrypt/live/$HOST/fullchain.pem` e `privkey.pem`.
+Result: `/etc/letsencrypt/live/$HOST/fullchain.pem` and `privkey.pem`.
 
-### B3. Virtual host nginx
-Crea `/etc/nginx/sites-available/$HOST` (sostituisci `app.tuodominio.it` e la parte `location`):
+### B3. nginx virtual host
+Create `/etc/nginx/sites-available/$HOST` (replace `app.yourdomain.com` and the `location` part):
 
 ```nginx
 server {
     listen 80;
     listen [::]:80;
-    server_name app.tuodominio.it;
+    server_name app.yourdomain.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name app.tuodominio.it;
+    server_name app.yourdomain.com;
 
-    ssl_certificate     /etc/letsencrypt/live/app.tuodominio.it/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/app.tuodominio.it/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/app.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.yourdomain.com/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_session_cache   shared:SSL:10m;
 
-    # Solo LAN (difesa in più: nessuna porta è comunque aperta verso Internet)
+    # LAN only (extra safety: no port is open towards the Internet anyway)
     allow 127.0.0.1;
     allow ::1;
     allow 10.0.0.0/8;
@@ -108,9 +110,9 @@ server {
     allow 192.168.0.0/16;
     deny all;
 
-    # --- scegli UNA delle due varianti ---
+    # --- pick ONE of the two variants ---
 
-    # (1) App che gira su una porta locale (Node, Docker, Python, ...)
+    # (1) An app listening on a local port (Node, Docker, Python, ...)
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host              $host;
@@ -122,47 +124,47 @@ server {
         proxy_set_header Connection "upgrade";
     }
 
-    # (2) Sito statico
-    # root /var/www/mio-sito;
+    # (2) Static site
+    # root /var/www/my-site;
     # index index.html;
     # location / { try_files $uri $uri/ =404; }
 }
 ```
 
-Attivalo:
+For calendar-sync in Docker, the proxy target is `http://127.0.0.1:8080` (see [docker.md](docker.md)). Enable it:
 
 ```bash
 ln -s /etc/nginx/sites-available/$HOST /etc/nginx/sites-enabled/$HOST
 nginx -t && systemctl reload nginx
 ```
 
-Per PHP/Laravel vedi `deploy/nginx/calendar-sync.conf` (variante php-fpm).
+For PHP/Laravel see `deploy/nginx/calendar-sync.conf` (php-fpm variant).
 
-### B4. L'app deve sapere di essere in HTTPS
-Dietro un reverse proxy l'app vede HTTP. Imposta `APP_URL=https://app.tuodominio.it` e fidati degli header `X-Forwarded-*` (in Laravel: `TRUSTED_PROXIES=127.0.0.1`), altrimenti genera link `http://` e il browser blocca gli asset.
+### B4. The app must know it is on HTTPS
+Behind a reverse proxy the app sees HTTP. Set `APP_URL=https://app.yourdomain.com` and trust the `X-Forwarded-*` headers (in Laravel: `TRUSTED_PROXIES=127.0.0.1`), otherwise it generates `http://` links and the browser blocks the assets.
 
 ---
 
-## Verifica
+## Verification
 
 ```bash
-dig +short $HOST                     # → IP privato
-curl -I https://$HOST                # → 200/302, nessun errore di certificato
-certbot certificates                 # → scadenza ~90 giorni
-certbot renew --dry-run              # → rinnovo automatico OK
+dig +short $HOST                     # → private IP
+curl -I https://$HOST                # → 200/302, no certificate error
+certbot certificates                 # → expiry in ~90 days
+certbot renew --dry-run              # → automatic renewal OK
 ```
 
-## Problemi comuni
+## Common problems
 
-| Sintomo | Causa / rimedio |
+| Symptom | Cause / fix |
 |---|---|
-| `dig` in LAN non restituisce nulla | DNS rebinding del router (A3) |
-| certbot: errore token / `Unable to determine zone` | Token senza `Zone → DNS → Edit` o su zona sbagliata |
-| certbot: TXT non trovato | Alza `--dns-cloudflare-propagation-seconds` (60–120) |
-| Avviso certificato nel browser | Stai usando l'IP invece del nome, oppure nginx non ricaricato |
-| 403 da nginx | IP del client fuori dai `allow` |
-| Pagina senza stile / mixed content | `X-Forwarded-Proto` non passato o `APP_URL` in http |
-| Dall'esterno non si apre | È voluto: l'IP è privato e non ci sono port forward |
+| `dig` on the LAN returns nothing | Router DNS rebinding protection (A3) |
+| certbot: token error / `Unable to determine zone` | Token without `Zone → DNS → Edit`, or on the wrong zone |
+| certbot: TXT not found | Raise `--dns-cloudflare-propagation-seconds` (60–120) |
+| Certificate warning in the browser | You are using the IP instead of the name, or nginx was not reloaded |
+| 403 from nginx | Client IP outside the `allow` list |
+| Page without style / mixed content | `X-Forwarded-Proto` not passed, or `APP_URL` is http |
+| Does not open from outside | By design: the IP is private and there are no port forwards |
 
-## Più siti, un solo certificato (opzione)
-Se hai molti sottodomini, puoi emettere un wildcard una volta: `-d "*.tuodominio.it" -d tuodominio.it`, e usare gli stessi `ssl_certificate` in tutti i vhost (percorso `live/tuodominio.it/`). Meno comandi, e in più i nomi dei singoli progetti non finiscono nei log pubblici di Certificate Transparency (con un certificato per sito sì). Contro: una sola chiave privata condivisa da tutti i siti.
+## More sites, one certificate (option)
+With many subdomains you can issue a wildcard once: `-d "*.yourdomain.com" -d yourdomain.com`, and use the same `ssl_certificate` in all the virtual hosts (path `live/yourdomain.com/`). Fewer commands, and the names of your individual projects stay out of the public Certificate Transparency logs (with one certificate per site they do not). Downside: a single private key shared by all the sites.

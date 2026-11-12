@@ -2,7 +2,7 @@
 
 > Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9, 10 e 11; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
-> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12, 13; step 14 in verifica su Docker.
+> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12, 13, 14, 15.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -541,5 +541,14 @@ Idempotenza:
   - Volume `data` su `storage/app`: contiene la `APP_KEY` generata al primo avvio (`app.key`, se `APP_KEY` è vuota) e il database SQLite. Log su stderr (`docker compose logs`), sessioni, cache e coda nel database.
   - Healthcheck: `web` chiama `/up`; `worker` e `scheduler` usano il nuovo `calsync:doctor --services`, che controlla solo database, credenziali leggibili, scheduler e coda. I controlli di configurazione (HTTPS, cookie sicuro) restano nel doctor completo: su HTTP in chiaro li segnala, com'è giusto.
   - HTTPS: l'immagine serve solo HTTP; davanti va un reverse proxy con TLS. `TRUSTED_PROXIES` predefinito sulle reti Docker (`172.16.0.0/12`), così un proxy sulla stessa macchina è fidato e i client della LAN no.
+  - Verifica: `docker compose up` da zero su una VM Debian 13 arm64 (VirtualBox), variante MySQL, con build dal sorgente (`compose.build.yaml`).
   - Simulazione locale senza Docker su una copia pulita: build senza `.env` né database, avvio dei tre ruoli, migration su SQLite in WAL, `/up` e login a 200, tick dello scheduler, `calsync:doctor --services` OK.
+- **Step 15.**
+  - Convenzione per le lingue: il file inglese ha il nome normale (`README.md`, `docs/google-oauth.md`, `deploy/README.md`…), quello italiano il suffisso `.it.md`; ognuno linka l'altro in cima. `PIANO.md` resta solo in italiano.
+  - `README.md` e `README.it.md`: funzioni, installazione con Docker e senza, collegamento degli account, variabili principali, comandi, FAQ, link alla documentazione, sostegno con GitHub Sponsors, nota AGPL. Nessuno screenshot per ora: si possono aggiungere in `docs/images/` prima della pubblicazione.
+  - Nuova guida `docs/docker.md` (+ `.it.md`): installazione, `APP_KEY`, reverse proxy (Caddy e nginx) e `TRUSTED_PROXIES`, aggiornamenti, backup e ripristino di MySQL e SQLite, problemi comuni.
+  - `docs/google-oauth`, `docs/https-lan-cloudflare` e `deploy/README` tradotti in inglese, con gli esempi su `example.com`. La guida di deploy dice dove sta la versione Docker. `deploy/update.sh` e gli altri file di `deploy/` non cambiano.
+  - Docker: variabile `CALSYNC_BIND` per pubblicare la porta solo su `127.0.0.1` dietro un proxy sulla stessa macchina; fuso orario predefinito del `.env` di Docker `UTC`.
+  - `CONTRIBUTING.md` (le regole da non rompere: marker `calsync`, mai toccare ciò che l'app non ha creato, traduzioni in `lang/it.json`), `.github/FUNDING.yml` (solo `github: laleace`), template per bug e richieste, `config.yml` che manda le vulnerabilità al reporting privato, template di pull request.
+  - I contributi esterni sono accettati sotto AGPL-3.0, come il resto del progetto (nessun CLA). Se in futuro vorrai una licenza commerciale, i contributi di terzi andranno gestiti a parte.
 

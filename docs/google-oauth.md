@@ -1,96 +1,101 @@
-# Google Cloud Console: credenziali OAuth per calendar-sync
+# Google Cloud Console: OAuth credentials for calendar-sync
 
-Servono una sola volta. Alla fine avrai tre valori da mettere nel `.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_REDIRECT_URI`.
+[Italiano](google-oauth.it.md)
 
-> La console di Google cambia spesso nomi e posizioni dei menu. Se qualcosa non corrisponde, cerca la voce con la barra di ricerca in alto.
+You need this once. At the end you will have three values for your `.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI`.
 
-## 1. Progetto e API
+Everyone who installs calendar-sync creates their own OAuth client: there is no shared app. It is free, and for personal use Google does not review anything.
 
-1. Apri https://console.cloud.google.com e accedi con il tuo account Google. Va bene quello personale: non deve essere per forza quello dei calendari da sincronizzare.
-2. Dal selettore progetti in alto scegli **Nuovo progetto**. Nome: `calendar-sync`. Crea e selezionalo.
-3. Vai su **API e servizi → Libreria**, cerca **Google Calendar API** e premi **Abilita**.
+> Google's console often renames and moves its menus. If something does not match, look the item up with the search bar at the top.
 
-## 2. Schermata di consenso (Google Auth Platform)
+## 1. Project and API
 
-1. Vai su **API e servizi → Schermata consenso OAuth**. Nelle versioni recenti la sezione si chiama **Google Auth Platform**. Premi **Inizia**.
-2. **Informazioni app**: nome `Calendar Sync` ed email di assistenza (la tua).
-3. **Pubblico**: **Esterno**.
-4. **Dati di contatto**: la tua email. Accetta le norme e premi **Crea**.
-5. **Accesso ai dati (ambiti): puoi saltarlo.** L'elenco degli ambiti dichiarati serve a Google solo per la verifica dell'app. calendar-sync chiede comunque l'unico ambito che gli serve, `https://www.googleapis.com/auth/calendar`, al momento del collegamento, e Google lo mostra nella schermata di consenso. Se lo aggiungi, Google segnala che un ambito "sensibile" richiede la verifica: è un avviso, non un blocco (vedi la sezione 5).
+1. Open <https://console.cloud.google.com> and sign in with your Google account. A personal one is fine: it does not have to be the account of the calendars you want to sync.
+2. In the project selector at the top choose **New project**. Name: `calendar-sync`. Create it and select it.
+3. Go to **APIs & Services → Library**, search for **Google Calendar API** and press **Enable**.
 
-## 3. Client OAuth
+## 2. Consent screen (Google Auth Platform)
 
-1. Vai su **Client → Crea client**, poi scegli **Tipo di applicazione: Applicazione web**. Nome: `calendar-sync`.
-2. In **URI di reindirizzamento autorizzati** aggiungi:
-   - `http://localhost:8000/oauth/google/callback`, per lo sviluppo in locale;
-   - `https://calsync.<tuo-dominio>/oauth/google/callback`, per la produzione (puoi aggiungerlo anche più avanti).
+1. Go to **APIs & Services → OAuth consent screen**. In recent versions the section is called **Google Auth Platform**. Press **Get started**.
+2. **App information**: name `Calendar Sync` and a support email (yours).
+3. **Audience**: **External**.
+4. **Contact information**: your email. Accept the policy and press **Create**.
+5. **Data access (scopes): you can skip it.** The list of declared scopes only matters to Google for app verification. calendar-sync asks for the one scope it needs, `https://www.googleapis.com/auth/calendar`, when you connect an account, and Google shows it on the consent screen. If you add it here, Google warns that a "sensitive" scope requires verification: it is a notice, not a block (see section 5).
 
-   Gli URI devono coincidere carattere per carattere con `GOOGLE_REDIRECT_URI`: schema, host, porta e path, senza barra finale. Le "origini JavaScript" non servono.
-3. Premi **Crea** e copia subito **Client ID** e **Client secret**. Nella console attuale il secret si vede per intero solo in questo momento: se lo perdi, dovrai generarne un altro.
+## 3. OAuth client
+
+1. Go to **Clients → Create client**, then choose **Application type: Web application**. Name: `calendar-sync`.
+2. Under **Authorized redirect URIs** add:
+   - the address of your installation followed by `/oauth/google/callback`, for example `https://calsync.example.com/oauth/google/callback`: it is your `APP_URL`;
+   - `http://localhost:8000/oauth/google/callback`, if you also run it locally for development.
+
+   The URIs must match `GOOGLE_REDIRECT_URI` character by character: scheme, host, port and path, no trailing slash. The "JavaScript origins" are not needed.
+3. Press **Create** and copy **Client ID** and **Client secret** right away. In the current console the secret is shown in full only at this moment: if you lose it, you will have to generate another.
 
 ## 4. `.env`
 
 ```dotenv
 GOOGLE_CLIENT_ID=1234567890-abc...apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
-GOOGLE_REDIRECT_URI=http://localhost:8000/oauth/google/callback
+GOOGLE_REDIRECT_URI=https://calsync.example.com/oauth/google/callback
 ```
 
-In produzione `GOOGLE_REDIRECT_URI` diventa `https://calsync.<tuo-dominio>/oauth/google/callback`. Il secret sta solo nel `.env` del server, mai nel repository.
+`GOOGLE_REDIRECT_URI` is optional: when it is not set, it defaults to `APP_URL/oauth/google/callback` (the Docker `.env` leaves it out). The secret lives only in the `.env` of the server, never in the repository.
 
-## 5. "Testing" o "In produzione": i 7 giorni
+## 5. "Testing" or "In production": the 7 days
 
-Finché l'app resta in stato **Testing**, Google fa scadere i refresh token dopo **7 giorni**. Il sync si fermerebbe ogni settimana e il pannello mostrerebbe "Token scaduto" con il pulsante "Riconnetti".
+While the app stays in **Testing** status, Google expires the refresh tokens after **7 days**. The sync would stop every week and the panel would show "Token expired" with a "Reconnect" button.
 
-Per uso personale conviene pubblicarla:
+For personal use it is better to publish it:
 
-1. In **Branding** Google può chiedere i link dell'app. Sono informazioni mostrate nella schermata di consenso, che vedi solo tu. Google li esamina soltanto se chiedi la verifica dell'app, che qui non serve. Compila così:
-   - **Home page dell'applicazione**: `https://calsync.<tuo-dominio>` (oppure la home del tuo dominio, se ne hai una);
-   - **Link alle norme sulla privacy**: `https://calsync.<tuo-dominio>/privacy`. La pagina è inclusa nell'app ed è pubblica, senza login;
-   - **Termini di servizio**: facoltativo, lascia vuoto;
-   - **Domini autorizzati**: `<tuo-dominio>`. È obbligatorio per usare il redirect URI di produzione, e i domini dei link sopra devono rientrare qui.
+1. In **Branding** Google may ask for the app's links. They are shown on the consent screen, which only you see. Google reviews them only if you ask for app verification, which you do not need here. Fill them in like this:
+   - **Application home page**: `https://calsync.example.com` (or the home page of your domain, if you have one);
+   - **Privacy policy link**: `https://calsync.example.com/privacy`. The page is part of the app and public, with no login;
+   - **Terms of service**: optional, leave it empty;
+   - **Authorized domains**: `example.com`. It is required to use the production redirect URI, and the domains of the links above must be listed here.
 
-   Nessuno di questi indirizzi deve per forza essere raggiungibile da Internet, e l'app Laravel non va esposta per questo (vedi la sezione "Esposizione in rete").
+   None of these addresses has to be reachable from the Internet, and the app does not have to be exposed for this (see "Network exposure").
 
-2. Vai su **Pubblico** e premi **Pubblica app**, poi conferma. Lo stato diventa **In produzione**.
-3. Ignora le richieste di verifica (pulsanti tipo "Prepara per la verifica" o "Invia per la verifica"). Un'app in produzione non verificata che usa un ambito sensibile funziona lo stesso, con due limiti che per uso personale non contano:
-   - al momento del consenso Google mostra l'avviso "Google non ha verificato questa app": premi **Avanzate → Vai a Calendar Sync (non sicura)**, l'app è la tua;
-   - massimo 100 utenti.
+2. Go to **Audience** and press **Publish app**, then confirm. The status becomes **In production**.
+3. Ignore the verification requests (buttons like "Prepare for verification" or "Submit for verification"). An unverified app in production that uses a sensitive scope works all the same, with two limits that do not matter for personal use:
+   - at consent time Google shows "Google hasn't verified this app": press **Advanced → Go to Calendar Sync (unsafe)**, it is your own app;
+   - at most 100 users.
 
-   La verifica serve solo a togliere l'avviso, e per l'accesso al calendario richiede una revisione completa (video dimostrativo e altro). Non ne vale la pena.
+   Verification only removes the notice. The Calendar scope is "sensitive", not "restricted", so it does not require a paid security assessment, but it still needs a review with a demo video. It is not worth it for a self-hosted app.
 
-   Se la console non ti lascia pubblicare senza verifica: con un dominio su Google Workspace puoi scegliere il pubblico **Interno**, che non richiede verifica e non fa scadere i token, ma funziona solo per gli account di quel Workspace. Altrimenti resta in **Testing** e riconnetti ogni 7 giorni.
+   If the console does not let you publish without verification: with a domain on Google Workspace you can choose the **Internal** audience, which needs no verification and does not expire tokens, but works only for accounts of that Workspace. Otherwise stay in **Testing** and reconnect every 7 days.
 
-Se preferisci restare in **Testing**, aggiungi i tuoi account Google in **Pubblico → Utenti di test** e metti in conto di dover riconnettere ogni 7 giorni.
+If you prefer to stay in **Testing**, add your Google accounts under **Audience → Test users** and expect to reconnect every 7 days.
 
-Anche in produzione un refresh token può smettere di funzionare in questi casi:
-- revochi l'accesso da https://myaccount.google.com/permissions;
-- l'account resta inutilizzato per 6 mesi;
-- superi i 100 refresh token attivi per lo stesso account e lo stesso client, cioè dopo molte riconnessioni: i più vecchi vengono invalidati.
+Even in production a refresh token can stop working when:
+- you revoke access at <https://myaccount.google.com/permissions>;
+- the account is unused for 6 months;
+- you exceed 100 active refresh tokens for the same account and the same client, that is after many reconnections: the oldest are invalidated.
 
-In tutti questi casi il pannello mostra "Token scaduto" e il pulsante "Riconnetti".
+In all these cases the panel shows "Token expired" and the "Reconnect" button.
 
-## 6. Esposizione in rete: non serve
+## 6. Network exposure: not needed
 
-Google non contatta mai il server di calendar-sync:
-- il ritorno dal consenso (redirect URI) è un redirect eseguito dal **tuo browser**;
-- lo scambio del codice e le chiamate alle API sono connessioni **in uscita** dal server verso Google.
+Google never contacts the calendar-sync server:
+- the return from the consent screen (redirect URI) is a redirect performed by **your browser**;
+- the code exchange and the API calls are **outbound** connections from the server to Google.
 
-Per il redirect URI di produzione Google chiede solo un indirizzo HTTPS su un dominio pubblico, cioè con un dominio vero, non `.lan` né un IP. L'indirizzo non deve essere raggiungibile da Internet. Due configurazioni possibili, dettagliate allo step 9:
+For the production redirect URI Google only asks for an HTTPS address on a public domain, that is a real domain, not `.lan` nor an IP. The address does not have to be reachable from the Internet. Two possible setups:
 
-- **Solo LAN.** Un record DNS su Cloudflare `calsync.<tuo-dominio>` punta all'IP privato del container, in modalità "DNS only" (nuvola grigia). Il certificato Let's Encrypt si ottiene con la challenge DNS-01 tramite le API di Cloudflare. Da Internet l'indirizzo non porta da nessuna parte.
-- **Cloudflare Tunnel + Cloudflare Access.** Utile se vuoi usare il pannello anche fuori casa. Access chiede un login (per esempio un codice alla tua email) prima ancora di arrivare a Laravel.
+- **LAN only.** A Cloudflare DNS record `calsync.example.com` points to the private IP of your server, in "DNS only" mode (grey cloud). The Let's Encrypt certificate is obtained with the DNS-01 challenge through the Cloudflare API. From the Internet the address leads nowhere. See [https-lan-cloudflare.md](https-lan-cloudflare.md).
+- **Cloudflare Tunnel + Cloudflare Access.** Useful if you also want to use the panel away from home. Access asks for a login (for example a code sent to your email) before reaching Laravel at all.
 
+An installation on `localhost` (for example Docker on your own computer, at <http://localhost:8080>) works too: Google accepts `http://localhost` redirect URIs.
 
-## 7. Collegare un account
+## 7. Connect an account
 
-1. Nel pannello vai su **Account → Nuovo**, scegli **Google** e dai un nome all'account. Premi **Salva**.
-2. Vieni portato su Google. Scegli l'account del calendario e concedi l'accesso al calendario: se Google mostra le caselle dei permessi, lascia spuntata quella del calendario.
-3. Torni sul pannello, dove l'account risulta collegato e i calendari vengono scoperti automaticamente.
+1. In the panel go to **Accounts → New**, choose **Google** and give the account a name. Press **Save**.
+2. You are taken to Google. Choose the account of the calendar and grant access to the calendar: if Google shows the permission checkboxes, leave the calendar one ticked.
+3. You come back to the panel, where the account is connected and its calendars are discovered automatically.
 
-## 8. Calendari di un altro account Google
+## 8. Calendars of another Google account
 
-Il client OAuth identifica l'app, non un account: qualsiasi account Google può autorizzarla, fino a 100 per un'app non verificata.
+The OAuth client identifies the app, not an account: any Google account can authorize it, up to 100 for an unverified app.
 
-- **Account Google diverso:** crea un nuovo account di tipo Google nel pannello. Su Google scegli l'altro account dalla lista, oppure "Usa un altro account". Anche per questo account comparirà l'avviso "Google non ha verificato questa app".
-- **In alternativa, condivisione:** dall'altro account condividi il calendario con quello già collegato, con il permesso "Apporta modifiche agli eventi" se deve fare da destinazione. Il calendario comparirà tra quelli dell'account esistente dopo "Scopri calendari".
+- **A different Google account:** create a new Google account in the panel. On Google choose the other account from the list, or "Use another account". For this account too you will see "Google hasn't verified this app".
+- **Alternatively, sharing:** from the other account share the calendar with the one already connected, with the "Make changes to events" permission if it is going to be a target. The calendar will show up among those of the existing account after "Discover calendars".
