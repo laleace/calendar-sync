@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+[![CI](https://github.com/laleace/calendar-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/laleace/calendar-sync/actions/workflows/ci.yml)
+
 Sincronizzazione unidirezionale e aggregazione di calendari **iCloud, CalDAV e Google Calendar**, self-hosted, con un pannello web.
 
 Copia in automatico gli eventi di uno o più calendari in un altro: il calendario di lavoro in quello personale, due calendari di famiglia in uno condiviso, tutto in un unico calendario "occupato" che i colleghi possono vedere. I tuoi calendari restano dove sono: calendar-sync crea, aggiorna ed elimina solo le copie che ha fatto lui.

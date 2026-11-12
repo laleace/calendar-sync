@@ -2,7 +2,7 @@
 
 > Stato: **approvato il 2026-10-07.** Step completati: tutti (0-7, 9, 10 e 11; lo step 8 è stato eliminato).
 > **2026-10-08: niente API per n8n.** L'app si limita a sincronizzare e aggregare calendari. Lo step 8 è stato eliminato e Sanctum rimosso (§7, punto 6).
-> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12, 13, 14, 15.
+> **2026-11-12: rilascio open source su GitHub** (AGPL-3.0, donazioni). Piano negli step 12-17, §9, approvato. Step completati: 12, 13, 14, 15, 16.
 > Questo file resta come riferimento per tutti gli step. Lo aggiorno quando una decisione cambia.
 
 ## 1. Ambiente rilevato
@@ -551,4 +551,10 @@ Idempotenza:
   - Docker: variabile `CALSYNC_BIND` per pubblicare la porta solo su `127.0.0.1` dietro un proxy sulla stessa macchina; fuso orario predefinito del `.env` di Docker `UTC`.
   - `CONTRIBUTING.md` (le regole da non rompere: marker `calsync`, mai toccare ciò che l'app non ha creato, traduzioni in `lang/it.json`), `.github/FUNDING.yml` (solo `github: laleace`), template per bug e richieste, `config.yml` che manda le vulnerabilità al reporting privato, template di pull request.
   - I contributi esterni sono accettati sotto AGPL-3.0, come il resto del progetto (nessun CLA). Se in futuro vorrai una licenza commerciale, i contributi di terzi andranno gestiti a parte.
+- **Step 16.** Tre workflow in `.github/workflows/`, più `dependabot.yml`.
+  - `ci.yml`, a ogni push su `main` e a ogni pull request: Pint (`--test`) e Pest su PHP 8.4 con SQLite, più ShellCheck su `docker/entrypoint.sh` e `deploy/update.sh`. Il `.env` si crea da `.env.example` con `key:generate`, come farebbe un contributore.
+  - `docker.yml`: le pull request che toccano immagine o Compose validano i tre file Compose e costruiscono l'immagine, senza pubblicarla. Su un tag `v*` si costruisce prima l'immagine amd64 e la si avvia (migration su SQLite vuoto, `APP_KEY` generata, `/up` risponde); solo se parte, si pubblica su `ghcr.io/laleace/calendar-sync` per amd64 e arm64 con i tag `X.Y.Z`, `X.Y` e `latest`.
+  - `audit.yml`: `composer audit` ogni lunedì e a richiesta. Non blocca i push, perché nuove advisory compaiono in qualsiasi momento; fallendo, GitHub avvisa.
+  - Dependabot: Composer (settimanale, Symfony raggruppato), GitHub Actions e immagine Docker (mensile).
+  - Provato in locale su un clone pulito: installazione, `key:generate`, Pint e 358 test, e ShellCheck sugli script. I workflow stessi si vedono girare solo su GitHub, allo step 17. Dopo il primo push dell'immagine il pacchetto su GHCR è privato: va reso pubblico dalle impostazioni del pacchetto.
 

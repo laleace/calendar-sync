@@ -2,6 +2,8 @@
 
 [Italiano](README.it.md)
 
+[![CI](https://github.com/laleace/calendar-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/laleace/calendar-sync/actions/workflows/ci.yml)
+
 Self-hosted, one-way calendar sync and aggregation for **iCloud, CalDAV and Google Calendar**, with a web panel.
 
 Copy the events of one or more calendars into another one, automatically: your work calendar into your personal one, two family calendars into a shared one, everything into a single "busy" calendar that colleagues can see. Your calendars stay where they are: calendar-sync only creates, updates and deletes the copies it made.
